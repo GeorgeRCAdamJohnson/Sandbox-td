@@ -174,91 +174,115 @@ function generateMap() {
     }
     pathCells = [];
 
-    // Generate random winding path using waypoints
-    let waypoints = [];
-    let startSide = Math.random() < 0.5 ? 'left' : 'top';
-    let endSide = Math.random() < 0.5 ? 'right' : 'bottom';
+    // Generate a guaranteed-connected path using a simple snake approach
+    // Pick entry and exit edges, then create a winding path between them
+    let startY = 1 + Math.floor(Math.random() * (GRID_ROWS - 2));
+    let endY = 1 + Math.floor(Math.random() * (GRID_ROWS - 2));
 
-    // Start point
-    if (startSide === 'left') {
-        waypoints.push({ x: 0, y: Math.floor(Math.random() * (GRID_ROWS - 4)) + 2 });
-    } else {
-        waypoints.push({ x: Math.floor(Math.random() * (GRID_COLS - 4)) + 2, y: 0 });
+    // Create path as series of horizontal runs connected by vertical segments
+    let numTurns = 3 + Math.floor(Math.random() * 3); // 3-5 horizontal runs
+    let cellPath = []; // array of {x, y} grid coords, each adjacent to previous
+
+    // Divide the grid width into segments for turns
+    let xPositions = [0]; // start at left edge
+    for (let i = 1; i <= numTurns; i++) {
+        let segWidth = Math.floor((GRID_COLS - 2) / (numTurns + 1));
+        let x = Math.min(GRID_COLS - 2, 2 + i * segWidth + Math.floor(Math.random() * 3) - 1);
+        xPositions.push(Math.max(2, Math.min(GRID_COLS - 2, x)));
     }
+    xPositions.push(GRID_COLS - 1); // end at right edge
 
-    // Generate 4-7 intermediate waypoints
-    let numWaypoints = 4 + Math.floor(Math.random() * 4);
-    let lastWP = waypoints[0];
-
-    for (let i = 0; i < numWaypoints; i++) {
-        let newX, newY;
-        let attempts = 0;
-        do {
-            newX = Math.floor(Math.random() * (GRID_COLS - 4)) + 2;
-            newY = Math.floor(Math.random() * (GRID_ROWS - 4)) + 2;
-            attempts++;
-        } while (attempts < 50 && (Math.abs(newX - lastWP.x) < 3 && Math.abs(newY - lastWP.y) < 3));
-
-        waypoints.push({ x: newX, y: newY });
-        lastWP = waypoints[waypoints.length - 1];
+    // Generate Y positions for each turn
+    let yPositions = [startY];
+    for (let i = 1; i < xPositions.length - 1; i++) {
+        yPositions.push(1 + Math.floor(Math.random() * (GRID_ROWS - 2)));
     }
+    yPositions.push(endY);
 
-    // End point
-    if (endSide === 'right') {
-        waypoints.push({ x: GRID_COLS - 1, y: Math.floor(Math.random() * (GRID_ROWS - 4)) + 2 });
-    } else {
-        waypoints.push({ x: Math.floor(Math.random() * (GRID_COLS - 4)) + 2, y: GRID_ROWS - 1 });
-    }
+    // Build the path cell by cell
+    for (let seg = 0; seg < xPositions.length - 1; seg++) {
+        let x0 = xPositions[seg], y0 = yPositions[seg];
+        let x1 = xPositions[seg + 1], y1 = yPositions[seg + 1];
 
-    // Connect waypoints with L-shaped paths (horizontal then vertical)
-    let fullPath = [];
-    for (let i = 0; i < waypoints.length - 1; i++) {
-        let from = waypoints[i];
-        let to = waypoints[i + 1];
-
-        // Decide randomly: go horizontal first or vertical first
-        if (Math.random() < 0.5) {
-            // Horizontal then vertical
-            let x = from.x;
-            let step = to.x > from.x ? 1 : -1;
-            while (x !== to.x) {
-                fullPath.push({ x: x, y: from.y });
-                x += step;
+        // First move horizontally from x0 to x1 at y0
+        // Then move vertically from y0 to y1 at x1
+        // (or vertical first on alternating segments for variety)
+        if (seg % 2 === 0) {
+            // Horizontal first
+            let stepX = x1 > x0 ? 1 : -1;
+            let x = x0;
+            while (x !== x1) {
+                cellPath.push({ x: x, y: y0 });
+                x += stepX;
             }
-            let y = from.y;
-            step = to.y > from.y ? 1 : -1;
-            while (y !== to.y) {
-                fullPath.push({ x: to.x, y: y });
-                y += step;
+            // Then vertical
+            let stepY = y1 > y0 ? 1 : -1;
+            let y = y0;
+            while (y !== y1) {
+                cellPath.push({ x: x1, y: y });
+                y += stepY;
             }
         } else {
-            // Vertical then horizontal
-            let y = from.y;
-            let step = to.y > from.y ? 1 : -1;
-            while (y !== to.y) {
-                fullPath.push({ x: from.x, y: y });
-                y += step;
+            // Vertical first
+            let stepY = y1 > y0 ? 1 : -1;
+            let y = y0;
+            while (y !== y1) {
+                cellPath.push({ x: x0, y: y });
+                y += stepY;
             }
-            let x = from.x;
-            step = to.x > from.x ? 1 : -1;
-            while (x !== to.x) {
-                fullPath.push({ x: x, y: to.y });
-                x += step;
+            // Then horizontal
+            let stepX = x1 > x0 ? 1 : -1;
+            let x = x0;
+            while (x !== x1) {
+                cellPath.push({ x: x, y: y1 });
+                x += stepX;
             }
         }
     }
-    fullPath.push(waypoints[waypoints.length - 1]);
+    // Add final cell
+    cellPath.push({ x: xPositions[xPositions.length - 1], y: yPositions[yPositions.length - 1] });
 
-    // Remove duplicates while preserving order
-    let seen = new Set();
-    let cleanPath = [];
-    for (let p of fullPath) {
-        let key = p.x + ',' + p.y;
-        if (!seen.has(key)) {
-            seen.add(key);
-            cleanPath.push(p);
+    // Remove any duplicate consecutive cells
+    let cleanPath = [cellPath[0]];
+    for (let i = 1; i < cellPath.length; i++) {
+        let prev = cleanPath[cleanPath.length - 1];
+        if (cellPath[i].x !== prev.x || cellPath[i].y !== prev.y) {
+            cleanPath.push(cellPath[i]);
         }
     }
+
+    // Validate: ensure every consecutive pair is adjacent (share edge)
+    // If not, insert bridging cells
+    let validatedPath = [cleanPath[0]];
+    for (let i = 1; i < cleanPath.length; i++) {
+        let prev = validatedPath[validatedPath.length - 1];
+        let curr = cleanPath[i];
+        let dx = curr.x - prev.x;
+        let dy = curr.y - prev.y;
+
+        // If not adjacent, bridge with L-shaped connector
+        if (Math.abs(dx) + Math.abs(dy) > 1) {
+            // Move horizontally first, then vertically
+            let x = prev.x;
+            let stepX = dx > 0 ? 1 : (dx < 0 ? -1 : 0);
+            while (x !== curr.x) {
+                x += stepX;
+                if (x !== curr.x || dy === 0) {
+                    validatedPath.push({ x: x, y: prev.y });
+                }
+            }
+            let y = prev.y;
+            let stepY = dy > 0 ? 1 : (dy < 0 ? -1 : 0);
+            while (y !== curr.y) {
+                y += stepY;
+                validatedPath.push({ x: curr.x, y: y });
+            }
+        } else {
+            validatedPath.push(curr);
+        }
+    }
+
+    cleanPath = validatedPath;
 
     // Mark grid cells as path
     for (let p of cleanPath) {
@@ -271,10 +295,12 @@ function generateMap() {
     // Convert to pixel path - enemies follow EVERY cell center for strict grid movement
     path = [];
     for (let i = 0; i < cleanPath.length; i++) {
-        path.push({
-            x: cleanPath[i].x * CELL_SIZE + CELL_SIZE / 2,
-            y: cleanPath[i].y * CELL_SIZE + CELL_SIZE / 2
-        });
+        if (cleanPath[i].y >= 0 && cleanPath[i].y < GRID_ROWS && cleanPath[i].x >= 0 && cleanPath[i].x < GRID_COLS) {
+            path.push({
+                x: cleanPath[i].x * CELL_SIZE + CELL_SIZE / 2,
+                y: cleanPath[i].y * CELL_SIZE + CELL_SIZE / 2
+            });
+        }
     }
 }
 
@@ -804,7 +830,7 @@ function updateEnemy(e) {
     let target = path[e.pathIdx + 1];
     let dx = target.x - e.x;
     let dy = target.y - e.y;
-    let dist = Math.sqrt(dx * dx + dy * dy);
+    let dist = Math.abs(dx) + Math.abs(dy); // Manhattan distance since path is grid-aligned
     let speed = e.speed * e.slowAmt;
 
     if (e.slowTimer > 0) {
@@ -812,27 +838,17 @@ function updateEnemy(e) {
         if (e.slowTimer <= 0) e.slowAmt = 1;
     }
 
-    // Move strictly along grid - only horizontal or vertical at a time
-    if (dist < speed + 0.5) {
+    if (dist <= speed) {
+        // Snap to target and advance
         e.x = target.x;
         e.y = target.y;
         e.pathIdx++;
     } else {
-        // Move along one axis at a time for strict grid movement
-        let absDx = Math.abs(dx);
-        let absDy = Math.abs(dy);
-
-        if (absDx > 0.5 && absDy > 0.5) {
-            // At a corner - prioritize the larger axis
-            if (absDx >= absDy) {
-                e.x += Math.sign(dx) * Math.min(speed, absDx);
-            } else {
-                e.y += Math.sign(dy) * Math.min(speed, absDy);
-            }
-        } else if (absDx > 0.5) {
-            e.x += Math.sign(dx) * Math.min(speed, absDx);
+        // Move along exactly one axis (path cells are always axis-aligned neighbors)
+        if (Math.abs(dx) > 0.1) {
+            e.x += Math.sign(dx) * speed;
         } else {
-            e.y += Math.sign(dy) * Math.min(speed, absDy);
+            e.y += Math.sign(dy) * speed;
         }
     }
     e.angle += 0.04;
