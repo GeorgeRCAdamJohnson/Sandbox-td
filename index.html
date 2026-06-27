@@ -3,196 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vectron TD - A Vector Tower Defense Game</title>
+    <title>Vectron TD - Tower Defense</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background: #0a0a0f;
+            background: #050510;
             overflow: hidden;
             font-family: 'Courier New', monospace;
-            color: #00ffaa;
+            color: #00ffc8;
         }
-
-        #gameContainer {
-            display: flex;
-            width: 100vw;
-            height: 100vh;
-        }
-
+        #gameContainer { display: none; width: 100vw; height: 100vh; }
         #gameCanvas {
             display: block;
             cursor: crosshair;
+            border: 1px solid rgba(0,255,200,0.3);
+            position: absolute;
+            top: 50%;
+            left: calc(50% - 120px);
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 30px rgba(0,255,200,0.1);
         }
-
         #sidebar {
+            position: fixed;
+            right: 0; top: 0; bottom: 0;
             width: 240px;
-            min-width: 240px;
-            background: rgba(5, 5, 15, 0.95);
-            border-left: 1px solid rgba(0, 255, 170, 0.3);
+            background: rgba(5,5,16,0.97);
+            border-left: 1px solid rgba(0,255,200,0.2);
             padding: 10px;
             display: flex;
             flex-direction: column;
             gap: 8px;
             overflow-y: auto;
+            z-index: 100;
         }
-
         .panel {
-            border: 1px solid rgba(0, 255, 170, 0.2);
+            border: 1px solid rgba(0,255,200,0.15);
             padding: 8px;
-            border-radius: 4px;
-            background: rgba(0, 20, 15, 0.3);
+            border-radius: 3px;
+            background: rgba(0,20,20,0.3);
         }
-
         .panel h3 {
-            font-size: 11px;
+            font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 2px;
-            color: #00ffaa;
-            margin-bottom: 6px;
-            text-shadow: 0 0 10px rgba(0, 255, 170, 0.5);
+            color: #00ffc8;
+            margin-bottom: 5px;
+            text-shadow: 0 0 8px rgba(0,255,200,0.4);
         }
-
-        .stat-row {
-            display: flex;
-            justify-content: space-between;
-            font-size: 12px;
-            margin-bottom: 3px;
-        }
-
-        .stat-label {
-            color: #888;
-        }
-
-        .stat-value {
-            color: #fff;
-            text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
-        }
-
-        .tower-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px;
-        }
-
+        .stat-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px; }
+        .stat-label { color: #667; }
+        .stat-value { color: #eee; }
+        .tower-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
         .tower-btn {
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(100, 100, 100, 0.3);
-            border-radius: 4px;
-            padding: 8px 4px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(100,100,100,0.2);
+            border-radius: 3px;
+            padding: 7px 3px;
             cursor: pointer;
             text-align: center;
-            transition: all 0.2s;
-            color: #ccc;
+            transition: all 0.15s;
+            color: #aaa;
             font-family: 'Courier New', monospace;
-            font-size: 10px;
-        }
-
-        .tower-btn:hover {
-            background: rgba(30, 30, 50, 0.8);
-            transform: scale(1.05);
-        }
-
-        .tower-btn.selected {
-            border-color: #fff;
-            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
-        }
-
-        .tower-btn.green { border-color: rgba(0, 255, 100, 0.5); }
-        .tower-btn.green:hover, .tower-btn.green.selected { border-color: #00ff64; box-shadow: 0 0 10px rgba(0, 255, 100, 0.5); }
-        .tower-btn.red { border-color: rgba(255, 60, 60, 0.5); }
-        .tower-btn.red:hover, .tower-btn.red.selected { border-color: #ff3c3c; box-shadow: 0 0 10px rgba(255, 60, 60, 0.5); }
-        .tower-btn.purple { border-color: rgba(180, 60, 255, 0.5); }
-        .tower-btn.purple:hover, .tower-btn.purple.selected { border-color: #b43cff; box-shadow: 0 0 10px rgba(180, 60, 255, 0.5); }
-        .tower-btn.blue { border-color: rgba(60, 150, 255, 0.5); }
-        .tower-btn.blue:hover, .tower-btn.blue.selected { border-color: #3c96ff; box-shadow: 0 0 10px rgba(60, 150, 255, 0.5); }
-
-        .tower-icon {
-            font-size: 20px;
-            margin-bottom: 3px;
-        }
-
-        .tower-cost {
-            color: #ffcc00;
             font-size: 9px;
         }
-
+        .tower-btn:hover { background: rgba(20,30,30,0.8); transform: scale(1.04); }
+        .tower-btn.selected { border-color: #fff; box-shadow: 0 0 10px rgba(255,255,255,0.2); }
+        .tower-btn.green { border-color: rgba(0,255,136,0.4); }
+        .tower-btn.green:hover,.tower-btn.green.selected { border-color: #00ff88; box-shadow: 0 0 8px rgba(0,255,136,0.4); }
+        .tower-btn.red { border-color: rgba(255,51,85,0.4); }
+        .tower-btn.red:hover,.tower-btn.red.selected { border-color: #ff3355; box-shadow: 0 0 8px rgba(255,51,85,0.4); }
+        .tower-btn.purple { border-color: rgba(204,68,255,0.4); }
+        .tower-btn.purple:hover,.tower-btn.purple.selected { border-color: #cc44ff; box-shadow: 0 0 8px rgba(204,68,255,0.4); }
+        .tower-btn.blue { border-color: rgba(68,187,255,0.4); }
+        .tower-btn.blue:hover,.tower-btn.blue.selected { border-color: #44bbff; box-shadow: 0 0 8px rgba(68,187,255,0.4); }
+        .tower-btn.super { border-style: double; border-width: 3px; }
+        .tower-icon { font-size: 18px; margin-bottom: 2px; }
+        .tower-cost { color: #ffcc00; font-size: 9px; }
         #waveBtn {
-            background: rgba(0, 255, 170, 0.1);
-            border: 1px solid #00ffaa;
-            color: #00ffaa;
-            padding: 10px;
-            border-radius: 4px;
+            background: rgba(0,255,200,0.08);
+            border: 1px solid #00ffc8;
+            color: #00ffc8;
+            padding: 8px;
+            border-radius: 3px;
             cursor: pointer;
             font-family: 'Courier New', monospace;
-            font-size: 12px;
+            font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 1px;
             transition: all 0.2s;
         }
-
-        #waveBtn:hover {
-            background: rgba(0, 255, 170, 0.2);
-            box-shadow: 0 0 15px rgba(0, 255, 170, 0.3);
-        }
-
-        #waveBtn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        .upgrade-btn {
-            background: rgba(255, 200, 0, 0.1);
-            border: 1px solid rgba(255, 200, 0, 0.5);
-            color: #ffcc00;
-            padding: 6px 10px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-family: 'Courier New', monospace;
-            font-size: 10px;
-            width: 100%;
-            margin-top: 4px;
-            transition: all 0.2s;
-        }
-
-        .upgrade-btn:hover {
-            background: rgba(255, 200, 0, 0.2);
-            box-shadow: 0 0 10px rgba(255, 200, 0, 0.3);
-        }
-
-        .sell-btn {
-            background: rgba(255, 60, 60, 0.1);
-            border: 1px solid rgba(255, 60, 60, 0.5);
-            color: #ff6666;
-            padding: 6px 10px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-family: 'Courier New', monospace;
-            font-size: 10px;
-            width: 100%;
-            margin-top: 4px;
-            transition: all 0.2s;
-        }
-
-        .sell-btn:hover {
-            background: rgba(255, 60, 60, 0.2);
-        }
-
-        .target-modes {
-            display: flex;
-            gap: 3px;
-            margin-top: 4px;
-        }
-
+        #waveBtn:hover { background: rgba(0,255,200,0.15); box-shadow: 0 0 12px rgba(0,255,200,0.2); }
+        #waveBtn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .target-modes { display: flex; gap: 3px; margin-top: 5px; }
         .target-mode-btn {
             flex: 1;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(100, 100, 100, 0.3);
-            color: #888;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(100,100,100,0.2);
+            color: #666;
             padding: 3px;
             border-radius: 2px;
             cursor: pointer;
@@ -200,186 +107,76 @@
             font-size: 9px;
             text-align: center;
         }
-
-        .target-mode-btn.active {
-            border-color: #00ffaa;
-            color: #00ffaa;
+        .target-mode-btn.active { border-color: #00ffc8; color: #00ffc8; }
+        .sell-btn {
+            background: rgba(255,50,50,0.08);
+            border: 1px solid rgba(255,50,50,0.4);
+            color: #ff6666;
+            padding: 5px 8px;
+            border-radius: 2px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 9px;
+            width: 100%;
+            margin-top: 5px;
         }
-
-        .speed-controls {
-            display: flex;
-            gap: 4px;
-        }
-
+        .sell-btn:hover { background: rgba(255,50,50,0.15); }
+        .speed-controls { display: flex; gap: 4px; }
         .speed-btn {
             flex: 1;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(100, 100, 100, 0.3);
-            color: #888;
-            padding: 5px;
-            border-radius: 3px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(100,100,100,0.2);
+            color: #666;
+            padding: 4px;
+            border-radius: 2px;
             cursor: pointer;
             font-family: 'Courier New', monospace;
             font-size: 10px;
             text-align: center;
-            transition: all 0.2s;
         }
-
-        .speed-btn.active {
-            border-color: #00ffaa;
-            color: #00ffaa;
-            background: rgba(0, 255, 170, 0.1);
-        }
-
-        #startScreen {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: #0a0a0f;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-
-        #startScreen h1 {
-            font-size: 48px;
-            color: #00ffaa;
-            text-shadow: 0 0 20px rgba(0, 255, 170, 0.8), 0 0 40px rgba(0, 255, 170, 0.4);
-            letter-spacing: 8px;
-            margin-bottom: 10px;
-        }
-
-        #startScreen .subtitle {
-            font-size: 14px;
-            color: #666;
-            letter-spacing: 4px;
-            margin-bottom: 40px;
-        }
-
-        #startScreen .start-btn {
-            background: transparent;
-            border: 2px solid #00ffaa;
-            color: #00ffaa;
-            padding: 15px 40px;
-            font-family: 'Courier New', monospace;
-            font-size: 16px;
-            letter-spacing: 3px;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-transform: uppercase;
-        }
-
-        #startScreen .start-btn:hover {
-            background: rgba(0, 255, 170, 0.1);
-            box-shadow: 0 0 30px rgba(0, 255, 170, 0.4);
-            transform: scale(1.05);
-        }
-
-        #startScreen .instructions {
-            margin-top: 30px;
-            font-size: 11px;
-            color: #555;
-            text-align: center;
-            line-height: 1.8;
-        }
-
-        #gameOverScreen {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(10, 10, 15, 0.95);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-
-        #gameOverScreen h1 {
-            font-size: 36px;
-            color: #ff3c3c;
-            text-shadow: 0 0 20px rgba(255, 60, 60, 0.8);
-            letter-spacing: 6px;
-            margin-bottom: 20px;
-        }
-
-        #gameOverScreen .score {
-            font-size: 18px;
-            color: #ffcc00;
-            margin-bottom: 30px;
-        }
-
-        #victoryScreen {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(10, 10, 15, 0.95);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-
-        #victoryScreen h1 {
-            font-size: 36px;
-            color: #00ffaa;
-            text-shadow: 0 0 20px rgba(0, 255, 170, 0.8);
-            letter-spacing: 6px;
-            margin-bottom: 20px;
-        }
-    </style>
+        .speed-btn.active { border-color: #00ffc8; color: #00ffc8; background: rgba(0,255,200,0.08); }
+</style>
 </head>
 <body>
-    <div id="startScreen">
-        <h1>VECTRON TD</h1>
-        <div class="subtitle">TOWER DEFENSE</div>
-        <button class="start-btn" onclick="startGame()">INITIALIZE</button>
-        <div class="instructions">
-            CLICK TO PLACE TOWERS | RIGHT-CLICK TO DESELECT<br>
-            ELIMINATE ALL VECTOIDS BEFORE THEY REACH THE EXIT<br>
-            EARN INTEREST ON UNSPENT CREDITS BETWEEN WAVES<br>
-            <br>
-            GREEN: LASER | RED: ROCKETS | PURPLE: BEAM | BLUE: SLOW
+    <div id="startScreen" style="position:fixed;inset:0;background:#050510;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:2000;">
+        <h1 style="font-size:52px;color:#00ffc8;text-shadow:0 0 25px rgba(0,255,200,0.7),0 0 50px rgba(0,255,200,0.3);letter-spacing:10px;margin-bottom:8px;">VECTRON TD</h1>
+        <div style="font-size:12px;color:#445;letter-spacing:5px;margin-bottom:40px;">TOWER DEFENSE</div>
+        <button onclick="startGame()" style="background:transparent;border:2px solid #00ffc8;color:#00ffc8;padding:14px 38px;font-family:'Courier New',monospace;font-size:15px;letter-spacing:3px;cursor:pointer;text-transform:uppercase;transition:all 0.3s;" onmouseover="this.style.boxShadow='0 0 25px rgba(0,255,200,0.4)'" onmouseout="this.style.boxShadow='none'">INITIALIZE</button>
+        <div style="margin-top:30px;font-size:10px;color:#445;text-align:center;line-height:2;">
+            30 LEVELS | RANDOM MAPS | UPGRADE BETWEEN LEVELS<br>
+            CLICK TO PLACE | RIGHT-CLICK TO DESELECT | SPACE FOR NEXT WAVE<br>
+            1-4: SELECT TOWERS | S: SELL | ESC: DESELECT<br>
+            MAX ALL UPGRADES TO UNLOCK SUPER WEAPONS
         </div>
     </div>
 
-    <div id="gameOverScreen">
-        <h1>SYSTEM BREACH</h1>
-        <div class="score" id="gameOverScore"></div>
-        <button class="start-btn" onclick="location.reload()">REINITIALIZE</button>
+    <div id="gameOverScreen" style="position:fixed;inset:0;background:rgba(5,5,16,0.95);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:2000;">
+        <h1 style="font-size:36px;color:#ff3355;text-shadow:0 0 20px rgba(255,51,85,0.7);letter-spacing:5px;margin-bottom:15px;">SYSTEM BREACH</h1>
+        <div id="gameOverScore" style="font-size:16px;color:#ffcc00;margin-bottom:25px;"></div>
+        <button onclick="location.reload()" style="background:transparent;border:2px solid #ff3355;color:#ff3355;padding:12px 30px;font-family:'Courier New',monospace;font-size:14px;letter-spacing:2px;cursor:pointer;">REINITIALIZE</button>
     </div>
 
-    <div id="victoryScreen">
-        <h1>SYSTEM SECURED</h1>
-        <div class="score" id="victoryScore" style="color: #00ffaa;"></div>
-        <button class="start-btn" onclick="location.reload()">PLAY AGAIN</button>
+    <div id="victoryScreen" style="position:fixed;inset:0;background:rgba(5,5,16,0.95);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:2000;">
+        <h1 style="font-size:36px;color:#00ffc8;text-shadow:0 0 20px rgba(0,255,200,0.7);letter-spacing:5px;margin-bottom:15px;">SYSTEM SECURED</h1>
+        <div id="victoryScore" style="font-size:16px;color:#00ffc8;margin-bottom:25px;"></div>
+        <button onclick="location.reload()" style="background:transparent;border:2px solid #00ffc8;color:#00ffc8;padding:12px 30px;font-family:'Courier New',monospace;font-size:14px;letter-spacing:2px;cursor:pointer;">PLAY AGAIN</button>
+    </div>
+    <!-- UPGRADE SCREEN -->
+    <div id="upgradeScreen" style="position:fixed;inset:0;background:rgba(5,5,16,0.97);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:2000;">
+        <div id="upgradeContent" style="max-width:700px;width:90%;"></div>
     </div>
 
-    <div id="gameContainer" style="display:none;">
+    <div id="gameContainer">
         <canvas id="gameCanvas"></canvas>
         <div id="sidebar">
             <div class="panel">
-                <h3>System Status</h3>
-                <div class="stat-row">
-                    <span class="stat-label">Credits:</span>
-                    <span class="stat-value" id="moneyDisplay">$250</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Lives:</span>
-                    <span class="stat-value" id="livesDisplay">20</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Wave:</span>
-                    <span class="stat-value" id="waveDisplay">0 / 50</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Interest:</span>
-                    <span class="stat-value" id="interestDisplay">3%</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Score:</span>
-                    <span class="stat-value" id="scoreDisplay">0</span>
-                </div>
+                <h3>System</h3>
+                <div class="stat-row"><span class="stat-label">Credits:</span><span class="stat-value" id="moneyDisplay">$200</span></div>
+                <div class="stat-row"><span class="stat-label">Lives:</span><span class="stat-value" id="livesDisplay">20</span></div>
+                <div class="stat-row"><span class="stat-label">Level:</span><span class="stat-value" id="levelDisplay">1 / 30</span></div>
+                <div class="stat-row"><span class="stat-label">Wave:</span><span class="stat-value" id="waveHUD">0/5</span></div>
+                <div class="stat-row"><span class="stat-label">Score:</span><span class="stat-value" id="scoreDisplay">0</span></div>
+                <div class="stat-row"><span class="stat-label">Upg Pts:</span><span class="stat-value" id="upgPtsDisplay">0</span></div>
             </div>
 
             <div class="panel">
@@ -388,24 +185,29 @@
                     <div class="tower-btn green" onclick="selectTower('green')" id="btn-green">
                         <div class="tower-icon">&#9670;</div>
                         <div>Laser</div>
-                        <div class="tower-cost">$50</div>
+                        <div class="tower-cost">$40</div>
                     </div>
                     <div class="tower-btn red" onclick="selectTower('red')" id="btn-red">
                         <div class="tower-icon">&#9650;</div>
                         <div>Rocket</div>
-                        <div class="tower-cost">$75</div>
+                        <div class="tower-cost">$70</div>
                     </div>
                     <div class="tower-btn purple" onclick="selectTower('purple')" id="btn-purple">
                         <div class="tower-icon">&#9733;</div>
                         <div>Beam</div>
-                        <div class="tower-cost">$100</div>
+                        <div class="tower-cost">$90</div>
                     </div>
                     <div class="tower-btn blue" onclick="selectTower('blue')" id="btn-blue">
                         <div class="tower-icon">&#9679;</div>
                         <div>Freeze</div>
-                        <div class="tower-cost">$60</div>
+                        <div class="tower-cost">$55</div>
                     </div>
                 </div>
+            </div>
+
+            <div class="panel" id="superPanel" style="display:none;">
+                <h3>Super Weapons</h3>
+                <div class="tower-grid" id="superTowers"></div>
             </div>
 
             <div class="panel" id="towerInfoPanel" style="display:none;">
@@ -413,7 +215,7 @@
                 <div id="towerInfoContent"></div>
             </div>
 
-            <button id="waveBtn" onclick="sendNextWave()">Send Wave 1</button>
+            <button id="waveBtn" onclick="sendNextWave()">Wave 1/5</button>
 
             <div class="panel">
                 <h3>Speed</h3>
@@ -426,7 +228,68 @@
         </div>
     </div>
 
+    <style>
+        /* Upgrade screen styles */
+        .upgrade-header { text-align: center; margin-bottom: 20px; }
+        .upgrade-header h2 { color: #00ffc8; font-size: 22px; letter-spacing: 4px; text-shadow: 0 0 15px rgba(0,255,200,0.5); margin-bottom: 8px; }
+        .upgrade-header .pts { color: #ffcc00; font-size: 18px; }
+        .upgrade-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .upgrade-tower-card {
+            border: 1px solid;
+            border-radius: 5px;
+            padding: 12px;
+            background: rgba(0,10,10,0.5);
+        }
+        .upgrade-tower-card h3 { font-size: 14px; margin-bottom: 8px; letter-spacing: 2px; }
+        .upg-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-size: 11px; color: #aaa; }
+        .upg-btn {
+            background: rgba(0,255,200,0.1);
+            border: 1px solid #00ffc8;
+            color: #00ffc8;
+            width: 24px; height: 24px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+        }
+        .upg-btn:disabled { opacity: 0.2; cursor: not-allowed; }
+        .upg-btn:hover:not(:disabled) { background: rgba(0,255,200,0.2); }
+        .super-unlock-btn {
+            margin-top: 8px;
+            width: 100%;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid;
+            padding: 6px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 9px;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+        .super-unlock-btn:hover { background: rgba(255,255,255,0.05); }
+        .super-badge { font-size: 9px; margin-top: 8px; text-align: center; letter-spacing: 1px; }
+        .continue-btn {
+            display: block;
+            margin: 0 auto;
+            background: rgba(0,255,200,0.08);
+            border: 2px solid #00ffc8;
+            color: #00ffc8;
+            padding: 12px 30px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            letter-spacing: 2px;
+            transition: all 0.2s;
+        }
+        .continue-btn:hover { background: rgba(0,255,200,0.15); box-shadow: 0 0 20px rgba(0,255,200,0.3); }
+
+        @media (max-width: 1100px) {
+            .upgrade-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+
     <script src="game.js"></script>
 </body>
 </html>
-
