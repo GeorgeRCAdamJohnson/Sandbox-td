@@ -16,7 +16,7 @@ const CANVAS_H = GRID_ROWS * CELL_SIZE;
 let canvas, ctx;
 let gameState = 'menu'; // menu, playing, upgradeScreen, gameover, victory
 let gameSpeed = 1;
-let money = 200;
+let money = 80;
 let lives = 20;
 let score = 0;
 let currentLevel = 0;
@@ -268,36 +268,12 @@ function generateMap() {
         }
     }
 
-    // Convert to pixel waypoints (simplified - just use direction changes)
+    // Convert to pixel path - enemies follow EVERY cell center for strict grid movement
     path = [];
-    if (cleanPath.length > 0) {
+    for (let i = 0; i < cleanPath.length; i++) {
         path.push({
-            x: cleanPath[0].x * CELL_SIZE + CELL_SIZE / 2,
-            y: cleanPath[0].y * CELL_SIZE + CELL_SIZE / 2
-        });
-
-        for (let i = 1; i < cleanPath.length - 1; i++) {
-            let prev = cleanPath[i - 1];
-            let curr = cleanPath[i];
-            let next = cleanPath[i + 1];
-
-            // Add waypoint at direction changes
-            let dx1 = curr.x - prev.x;
-            let dy1 = curr.y - prev.y;
-            let dx2 = next.x - curr.x;
-            let dy2 = next.y - curr.y;
-
-            if (dx1 !== dx2 || dy1 !== dy2) {
-                path.push({
-                    x: curr.x * CELL_SIZE + CELL_SIZE / 2,
-                    y: curr.y * CELL_SIZE + CELL_SIZE / 2
-                });
-            }
-        }
-
-        path.push({
-            x: cleanPath[cleanPath.length - 1].x * CELL_SIZE + CELL_SIZE / 2,
-            y: cleanPath[cleanPath.length - 1].y * CELL_SIZE + CELL_SIZE / 2
+            x: cleanPath[i].x * CELL_SIZE + CELL_SIZE / 2,
+            y: cleanPath[i].y * CELL_SIZE + CELL_SIZE / 2
         });
     }
 }
@@ -836,13 +812,28 @@ function updateEnemy(e) {
         if (e.slowTimer <= 0) e.slowAmt = 1;
     }
 
-    if (dist < speed + 1) {
+    // Move strictly along grid - only horizontal or vertical at a time
+    if (dist < speed + 0.5) {
         e.x = target.x;
         e.y = target.y;
         e.pathIdx++;
     } else {
-        e.x += (dx / dist) * speed;
-        e.y += (dy / dist) * speed;
+        // Move along one axis at a time for strict grid movement
+        let absDx = Math.abs(dx);
+        let absDy = Math.abs(dy);
+
+        if (absDx > 0.5 && absDy > 0.5) {
+            // At a corner - prioritize the larger axis
+            if (absDx >= absDy) {
+                e.x += Math.sign(dx) * Math.min(speed, absDx);
+            } else {
+                e.y += Math.sign(dy) * Math.min(speed, absDy);
+            }
+        } else if (absDx > 0.5) {
+            e.x += Math.sign(dx) * Math.min(speed, absDx);
+        } else {
+            e.y += Math.sign(dy) * Math.min(speed, absDy);
+        }
     }
     e.angle += 0.04;
 }
