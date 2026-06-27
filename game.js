@@ -305,42 +305,178 @@ function generateMap() {
 }
 
 
-// === WAVE / ENEMY CONFIG ===
+// === ENEMY TRAITS & EFFECTIVENESS SYSTEM ===
+// Enemy traits determine which towers are effective/ineffective
+// Traits: normal, armored, shielded, fast, camo, regen, swarm, phase
+const ENEMY_TRAITS = {
+    normal: {
+        name: 'Vectoid',
+        color: '#00ff88',
+        hpMult: 1, speedMult: 1, countMult: 1, rewardMult: 1,
+        shape: 'diamond',
+        // Effectiveness: green=normal, red=normal, purple=normal, blue=normal
+        resist: {},
+        weak: {},
+    },
+    armored: {
+        name: 'Plated',
+        color: '#aaaaaa',
+        hpMult: 2.5, speedMult: 0.7, countMult: 0.7, rewardMult: 2,
+        shape: 'square',
+        resist: { green: 0.5 },  // Lasers do half damage
+        weak: { red: 1.8 },      // Rockets shred armor
+    },
+    shielded: {
+        name: 'Shielded',
+        color: '#44bbff',
+        hpMult: 1.8, speedMult: 0.9, countMult: 0.8, rewardMult: 1.8,
+        shape: 'hexagon',
+        resist: { red: 0.4, purple: 0.5 },  // Shields absorb AoE and beams
+        weak: { green: 1.6, blue: 1.5 },    // Fast shots and freeze break shields
+    },
+    fast: {
+        name: 'Runner',
+        color: '#ffcc00',
+        hpMult: 0.4, speedMult: 1.8, countMult: 1.8, rewardMult: 0.8,
+        shape: 'triangle',
+        resist: { red: 0.5 },    // Too fast for rockets
+        weak: { blue: 2.0, green: 1.3 }, // Freeze and rapid-fire shred them
+    },
+    camo: {
+        name: 'Phantom',
+        color: '#553388',
+        hpMult: 1.2, speedMult: 1.1, countMult: 1.0, rewardMult: 1.5,
+        shape: 'diamond',
+        resist: { green: 0.3, red: 0.3 }, // Nearly invisible to lasers/rockets
+        weak: { purple: 2.0, blue: 1.4 }, // Beams detect them, freeze reveals
+    },
+    regen: {
+        name: 'Regenerator',
+        color: '#33ff33',
+        hpMult: 1.5, speedMult: 0.9, countMult: 0.8, rewardMult: 1.8,
+        shape: 'diamond',
+        resist: { blue: 0.4 }, // Regen resists slow damage
+        weak: { purple: 1.8, red: 1.5 }, // High burst damage kills before regen
+        regenRate: 0.01, // Regens 1% maxHP per frame
+    },
+    swarm: {
+        name: 'Swarm',
+        color: '#ff8844',
+        hpMult: 0.25, speedMult: 1.2, countMult: 3.5, rewardMult: 0.4,
+        shape: 'triangle',
+        resist: { purple: 0.4 }, // Single-target beams waste DPS on swarms
+        weak: { red: 2.5, green: 1.4 }, // AoE and rapid-fire great vs swarms
+    },
+    phase: {
+        name: 'Phase',
+        color: '#ff44ff',
+        hpMult: 1.3, speedMult: 1.0, countMult: 0.8, rewardMult: 2.2,
+        shape: 'hexagon',
+        resist: { green: 0.5, blue: 0.5 }, // Phases through projectiles
+        weak: { purple: 1.6, red: 1.3 },   // Beams/explosions hit regardless
+        phaseChance: 0.3, // 30% chance to dodge projectile hits
+    },
+};
+
+// Get damage multiplier for a tower type vs enemy trait
+function getDamageMultiplier(towerType, enemyTrait) {
+    let traitDef = ENEMY_TRAITS[enemyTrait] || ENEMY_TRAITS.normal;
+    let mult = 1.0;
+    if (traitDef.resist[towerType]) mult *= traitDef.resist[towerType];
+    if (traitDef.weak[towerType]) mult *= traitDef.weak[towerType];
+    return mult;
+}
+
+// === WAVE COMPOSITION SYSTEM ===
 function getWaveConfig(level, wave) {
-    // Level 1 starts very easy, scaling gradually
     let difficulty = (level - 1) * 3 + wave;
-    let baseHP = 15 + difficulty * 6 + Math.pow(difficulty, 1.3);
-    let count = 4 + Math.floor(difficulty * 0.4);
-    let speed = 0.8 + Math.min(difficulty * 0.02, 1.2);
-    let reward = 5 + Math.floor(difficulty * 0.5);
+    let baseHP = 18 + difficulty * 5 + Math.pow(difficulty, 1.25);
+    let baseCount = 5 + Math.floor(difficulty * 0.35);
+    let baseSpeed = 0.9 + Math.min(difficulty * 0.018, 1.2);
+    let baseReward = 5 + Math.floor(difficulty * 0.4);
 
-    const colors = ['#00ff88', '#ff3355', '#cc44ff', '#44bbff', '#ffcc00', '#ff8844', '#ffffff'];
-    let color = colors[(difficulty - 1) % colors.length];
+    // Determine wave composition (mixed enemies!)
+    let groups = [];
 
-    let type = 'normal';
-    if (wave === wavesPerLevel) type = 'boss';
-    else if (wave % 3 === 0 && level > 2) type = 'fast';
-    else if (difficulty > 15 && wave % 4 === 0) type = 'armored';
+    if (wave === wavesPerLevel) {
+        // Boss wave: 1-2 bosses + escorts
+        groups.push({
+            trait: getBossTrait(level),
+            count: 1 + Math.floor(level / 12),
+            hpMult: 12,
+            speedMult: 0.4,
+            rewardMult: 8,
+            size: 18,
+        });
+        // Add escorts in later levels
+        if (level > 3) {
+            let escortTrait = getRandomTrait(level, true);
+            groups.push({
+                trait: escortTrait,
+                count: 3 + Math.floor(level / 5),
+                hpMult: 0.6,
+                speedMult: 1.2,
+                rewardMult: 0.5,
+                size: 8,
+            });
+        }
+    } else if (level <= 2) {
+        // Early levels: single type per wave
+        let trait = wave <= 2 ? 'normal' : (wave <= 4 ? 'fast' : 'normal');
+        groups.push({ trait, count: baseCount, hpMult: 1, speedMult: 1, rewardMult: 1, size: 10 });
+    } else {
+        // Mixed waves! Multiple enemy types per wave
+        let numGroups = level < 5 ? 1 : (level < 10 ? 2 : (level < 20 ? 2 + Math.floor(Math.random() * 2) : 3));
+        let remainingCount = baseCount;
 
-    let config = { hp: baseHP, count, speed, reward, color, type };
+        for (let g = 0; g < numGroups; g++) {
+            let trait = getRandomTrait(level, false);
+            let groupCount = g === numGroups - 1 ? remainingCount : Math.ceil(remainingCount / (numGroups - g) * (0.5 + Math.random() * 0.5));
+            groupCount = Math.max(2, groupCount);
+            remainingCount -= groupCount;
 
-    if (type === 'boss') {
-        config.hp *= 10;
-        config.count = 2 + Math.floor(level / 10);
-        config.speed *= 0.5;
-        config.reward *= 6;
-    } else if (type === 'fast') {
-        config.hp *= 0.4;
-        config.count = Math.floor(count * 1.8);
-        config.speed *= 1.7;
-    } else if (type === 'armored') {
-        config.hp *= 3;
-        config.speed *= 0.7;
-        config.reward *= 2.5;
+            groups.push({
+                trait: trait,
+                count: groupCount,
+                hpMult: 1,
+                speedMult: 1,
+                rewardMult: 1,
+                size: 10,
+            });
+        }
     }
 
-    return config;
+    return { baseHP, baseSpeed, baseReward, groups, difficulty };
 }
+
+function getRandomTrait(level, isEscort) {
+    // Unlock traits progressively
+    let available = ['normal'];
+    if (level >= 2) available.push('fast');
+    if (level >= 3) available.push('armored');
+    if (level >= 4) available.push('swarm');
+    if (level >= 6) available.push('shielded');
+    if (level >= 8) available.push('camo');
+    if (level >= 10) available.push('regen');
+    if (level >= 14) available.push('phase');
+
+    // Weight toward harder types at higher levels
+    if (level > 10 && Math.random() < 0.3) {
+        available = available.filter(t => t !== 'normal');
+    }
+
+    return available[Math.floor(Math.random() * available.length)];
+}
+
+function getBossTrait(level) {
+    if (level <= 3) return 'armored';
+    if (level <= 6) return 'shielded';
+    if (level <= 10) return Math.random() < 0.5 ? 'regen' : 'armored';
+    if (level <= 15) return Math.random() < 0.5 ? 'phase' : 'shielded';
+    let bossTraits = ['armored', 'shielded', 'regen', 'phase'];
+    return bossTraits[Math.floor(Math.random() * bossTraits.length)];
+}
+
 
 // === AUDIO ===
 let audioCtx = null;
@@ -649,13 +785,25 @@ function drawTowers() {
 function drawEnemies() {
     for (let e of enemies) {
         let size = e.size;
+        let trait = ENEMY_TRAITS[e.trait] || ENEMY_TRAITS.normal;
+        let shape = trait.shape || 'diamond';
+
         ctx.shadowBlur = 6;
         ctx.shadowColor = e.color;
         ctx.strokeStyle = e.color;
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.lineWidth = 1.5;
 
-        if (e.type === 'boss') {
+        // Camo enemies are semi-transparent
+        if (e.trait === 'camo') {
+            ctx.globalAlpha = 0.4 + Math.sin(animFrame * 0.1) * 0.15;
+        }
+        // Regen enemies pulse green
+        if (e.trait === 'regen' && e.hp < e.maxHp) {
+            ctx.fillStyle = 'rgba(0,80,0,0.5)';
+        }
+
+        if (shape === 'hexagon' || e.type === 'boss') {
             ctx.beginPath();
             for (let i = 0; i < 6; i++) {
                 let a = (i * Math.PI * 2) / 6 + e.angle;
@@ -664,7 +812,7 @@ function drawEnemies() {
                 if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
             }
             ctx.closePath(); ctx.fill(); ctx.stroke();
-        } else if (e.type === 'fast') {
+        } else if (shape === 'triangle') {
             ctx.beginPath();
             for (let i = 0; i < 3; i++) {
                 let a = (i * Math.PI * 2) / 3 + e.angle;
@@ -673,7 +821,7 @@ function drawEnemies() {
                 if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
             }
             ctx.closePath(); ctx.fill(); ctx.stroke();
-        } else if (e.type === 'armored') {
+        } else if (shape === 'square') {
             ctx.save();
             ctx.translate(e.x, e.y);
             ctx.rotate(e.angle);
@@ -682,6 +830,7 @@ function drawEnemies() {
             ctx.fill(); ctx.stroke();
             ctx.restore();
         } else {
+            // Diamond (default)
             ctx.beginPath();
             ctx.moveTo(e.x, e.y - size);
             ctx.lineTo(e.x + size, e.y);
@@ -690,6 +839,7 @@ function drawEnemies() {
             ctx.closePath(); ctx.fill(); ctx.stroke();
         }
 
+        ctx.globalAlpha = 1;
         ctx.shadowBlur = 0;
 
         // HP bar
@@ -710,6 +860,16 @@ function drawEnemies() {
             ctx.beginPath();
             ctx.arc(e.x, e.y, size + 4, 0, Math.PI * 2);
             ctx.stroke();
+        }
+
+        // Trait indicator for special types
+        if (e.trait !== 'normal' && e.type !== 'boss') {
+            ctx.fillStyle = e.color;
+            ctx.font = '7px monospace';
+            ctx.textAlign = 'center';
+            ctx.globalAlpha = 0.7;
+            ctx.fillText(trait.name[0], e.x, e.y + size + 9);
+            ctx.globalAlpha = 1;
         }
     }
 }
@@ -805,24 +965,47 @@ function drawHoverPreview() {
 
 
 // === ENEMY LOGIC ===
+let currentWaveGroups = [];
+let currentGroupIdx = 0;
+let groupSpawned = 0;
+
 function spawnEnemy() {
-    let config = getWaveConfig(currentLevel, currentWave);
+    if (currentGroupIdx >= currentWaveGroups.length) return;
+
+    let group = currentWaveGroups[currentGroupIdx];
+    let traitDef = ENEMY_TRAITS[group.trait] || ENEMY_TRAITS.normal;
+    let config = currentWaveConfig;
+
+    let hp = config.baseHP * traitDef.hpMult * group.hpMult;
+    let speed = config.baseSpeed * traitDef.speedMult * group.speedMult;
+    let reward = Math.floor(config.baseReward * traitDef.rewardMult * group.rewardMult);
+
     enemies.push({
         x: path[0].x,
         y: path[0].y,
         pathIdx: 0,
-        hp: config.hp,
-        maxHp: config.hp,
-        speed: config.speed,
-        reward: Math.floor(config.reward),
-        color: config.color,
-        type: config.type,
-        size: config.type === 'boss' ? 16 : config.type === 'fast' ? 7 : 10,
+        hp: hp,
+        maxHp: hp,
+        speed: speed,
+        reward: reward,
+        color: traitDef.color,
+        trait: group.trait,
+        type: group.trait === 'armored' || (group.hpMult > 5) ? 'boss' : group.trait,
+        size: group.size || (traitDef.countMult > 2 ? 7 : 10),
         slowTimer: 0,
         slowAmt: 1,
         angle: 0,
         reachedEnd: false,
+        regenRate: traitDef.regenRate || 0,
+        phaseChance: traitDef.phaseChance || 0,
+        traitName: traitDef.name,
     });
+
+    groupSpawned++;
+    if (groupSpawned >= group.count) {
+        currentGroupIdx++;
+        groupSpawned = 0;
+    }
 }
 
 function updateEnemy(e) {
@@ -837,6 +1020,11 @@ function updateEnemy(e) {
     if (e.slowTimer > 0) {
         e.slowTimer--;
         if (e.slowTimer <= 0) e.slowAmt = 1;
+    }
+
+    // Regeneration
+    if (e.regenRate > 0 && e.hp < e.maxHp) {
+        e.hp = Math.min(e.maxHp, e.hp + e.maxHp * e.regenRate);
     }
 
     if (dist <= speed) {
@@ -914,7 +1102,14 @@ function fireTower(tower, target) {
     let def = tower.isSuper ? SUPER_DEFS[tower.type] : TOWER_DEFS[tower.type];
 
     if (stats.projType === 'beam') {
-        target.hp -= stats.damage;
+        // Beam applies damage multiplier directly
+        let mult = getDamageMultiplier(tower.type, target.trait || 'normal');
+        // Phase dodge for beams too
+        if (target.phaseChance > 0 && Math.random() < target.phaseChance * 0.5) {
+            floatingTexts.push({ x: target.x, y: target.y - 10, text: 'PHASE', color: '#ff44ff', life: 20, maxLife: 20, vy: -0.5 });
+        } else {
+            target.hp -= stats.damage * mult;
+        }
         tower.beamTarget = { x: target.x, y: target.y };
         tower.beamTimer = 8;
         spawnParticles(target.x, target.y, def.color, 5);
@@ -930,6 +1125,7 @@ function fireTower(tower, target) {
             damage: stats.damage,
             color: def.color,
             type: stats.projType,
+            towerType: tower.type,
             life: 80,
             dead: false,
             size: stats.projType === 'rocket' ? 5 : 3,
@@ -972,7 +1168,9 @@ function updateProjectile(p) {
                 let ex = e.x - p.x, ey = e.y - p.y;
                 let dist = Math.sqrt(ex * ex + ey * ey);
                 if (dist < p.splash) {
-                    e.hp -= p.damage * (1 - dist / p.splash * 0.5);
+                    let mult = getDamageMultiplier(p.towerType || 'red', e.trait || 'normal');
+                    let dmg = p.damage * (1 - dist / p.splash * 0.5) * mult;
+                    e.hp -= dmg;
                 }
             }
             spawnParticles(p.x, p.y, p.color, 12);
@@ -983,7 +1181,15 @@ function updateProjectile(p) {
         for (let e of enemies) {
             let dx = e.x - p.x, dy = e.y - p.y;
             if (Math.sqrt(dx * dx + dy * dy) < e.size + p.size) {
-                e.hp -= p.damage;
+                // Phase dodge check
+                if (e.phaseChance > 0 && Math.random() < e.phaseChance) {
+                    // Dodged! Show visual
+                    floatingTexts.push({ x: e.x, y: e.y - 10, text: 'PHASE', color: '#ff44ff', life: 20, maxLife: 20, vy: -0.5 });
+                    p.dead = true;
+                    break;
+                }
+                let mult = getDamageMultiplier(p.towerType || 'green', e.trait || 'normal');
+                e.hp -= p.damage * mult;
                 if (p.type === 'slow') {
                     e.slowAmt = p.slowAmt;
                     e.slowTimer = p.slowDur;
@@ -1160,15 +1366,28 @@ function startLevel(lvl) {
     requestAnimationFrame(gameLoop);
 }
 
+let currentWaveConfig = null;
+
 function sendNextWave() {
     if (waveInProgress || gameState !== 'playing') return;
     if (currentWave >= wavesPerLevel) return;
 
-    let config = getWaveConfig(currentLevel, currentWave + 1);
-    enemiesInWave = config.count;
+    currentWaveConfig = getWaveConfig(currentLevel, currentWave + 1);
+    currentWaveGroups = currentWaveConfig.groups;
+    currentGroupIdx = 0;
+    groupSpawned = 0;
+
+    // Total enemies in this wave
+    enemiesInWave = 0;
+    for (let g of currentWaveGroups) {
+        let traitDef = ENEMY_TRAITS[g.trait] || ENEMY_TRAITS.normal;
+        g.count = Math.max(1, Math.floor(g.count * traitDef.countMult));
+        enemiesInWave += g.count;
+    }
+
     enemiesSpawned = 0;
     spawnTimer = 0;
-    spawnInterval = config.type === 'fast' ? 15 : config.type === 'boss' ? 50 : 25;
+    spawnInterval = 20;
     waveInProgress = true;
 
     document.getElementById('waveBtn').disabled = true;
