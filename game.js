@@ -16,7 +16,7 @@ const CANVAS_H = GRID_ROWS * CELL_SIZE;
 let canvas, ctx;
 let gameState = 'menu'; // menu, playing, upgradeScreen, gameover, victory
 let gameSpeed = 1;
-let money = 80;
+let money = 100;
 let lives = 20;
 let score = 0;
 let currentLevel = 0;
@@ -59,13 +59,13 @@ let superWeaponsUnlocked = {
 const TOWER_DEFS = {
     green: {
         name: 'Laser',
-        cost: 40,
+        cost: 30,
         color: '#00ff88',
         colorDim: 'rgba(0,255,136,0.3)',
         range: 3.5,
-        damage: 10,
-        fireRate: 12,
-        projSpeed: 14,
+        damage: 12,
+        fireRate: 10,
+        projSpeed: 16,
         projType: 'laser',
         desc: 'Fast laser shots',
     },
@@ -307,19 +307,20 @@ function generateMap() {
 
 // === WAVE / ENEMY CONFIG ===
 function getWaveConfig(level, wave) {
-    let difficulty = level * 5 + wave;
-    let baseHP = 25 + difficulty * 12 + Math.pow(difficulty, 1.4) * 2;
-    let count = 6 + Math.floor(difficulty * 0.6);
-    let speed = 1.0 + Math.min(difficulty * 0.025, 1.5);
-    let reward = 4 + Math.floor(difficulty * 0.4);
+    // Level 1 starts very easy, scaling gradually
+    let difficulty = (level - 1) * 3 + wave;
+    let baseHP = 15 + difficulty * 6 + Math.pow(difficulty, 1.3);
+    let count = 4 + Math.floor(difficulty * 0.4);
+    let speed = 0.8 + Math.min(difficulty * 0.02, 1.2);
+    let reward = 5 + Math.floor(difficulty * 0.5);
 
     const colors = ['#00ff88', '#ff3355', '#cc44ff', '#44bbff', '#ffcc00', '#ff8844', '#ffffff'];
     let color = colors[(difficulty - 1) % colors.length];
 
     let type = 'normal';
     if (wave === wavesPerLevel) type = 'boss';
-    else if (wave % 3 === 0) type = 'fast';
-    else if (difficulty > 10 && wave % 4 === 0) type = 'armored';
+    else if (wave % 3 === 0 && level > 2) type = 'fast';
+    else if (difficulty > 15 && wave % 4 === 0) type = 'armored';
 
     let config = { hp: baseHP, count, speed, reward, color, type };
 
@@ -1104,13 +1105,21 @@ function update() {
 function levelComplete() {
     playSound('levelup');
     upgradePoints += 2 + Math.floor(currentLevel / 5);
-    let bonus = Math.floor(money * 0.05);
-    money += bonus;
+
+    // Level completion bonus: flat bonus + percentage of current money
+    let levelBonus = 60 + currentLevel * 15;
+    let interestBonus = Math.floor(money * 0.10);
+    money += levelBonus + interestBonus;
 
     floatingTexts.push({
-        x: CANVAS_W / 2, y: CANVAS_H / 2,
+        x: CANVAS_W / 2, y: CANVAS_H / 2 - 20,
         text: 'LEVEL ' + currentLevel + ' COMPLETE!',
         color: '#00ffc8', life: 80, maxLife: 80, vy: -0.3
+    });
+    floatingTexts.push({
+        x: CANVAS_W / 2, y: CANVAS_H / 2 + 10,
+        text: '+$' + (levelBonus + interestBonus) + ' bonus',
+        color: '#ffcc00', life: 80, maxLife: 80, vy: -0.3
     });
 
     if (currentLevel >= TOTAL_LEVELS) {
