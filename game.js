@@ -1047,14 +1047,14 @@ function update() {
         waveInProgress = false;
         currentWave++;
 
-        if (currentWave > wavesPerLevel) {
+        if (currentWave >= wavesPerLevel) {
             // Level complete!
             levelComplete();
             return;
         }
 
         document.getElementById('waveBtn').disabled = false;
-        document.getElementById('waveBtn').textContent = `Wave ${currentWave}/${wavesPerLevel}`;
+        document.getElementById('waveBtn').textContent = `Wave ${currentWave + 1}/${wavesPerLevel}`;
         updateHUD();
     }
 
