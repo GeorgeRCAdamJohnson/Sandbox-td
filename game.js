@@ -357,7 +357,7 @@ const ENEMY_TRAITS = {
         shape: 'diamond',
         resist: { blue: 0.4 }, // Regen resists slow damage
         weak: { purple: 1.8, red: 1.5 }, // High burst damage kills before regen
-        regenRate: 0.01, // Regens 1% maxHP per frame
+        regenRate: 0.015, // Regens 1.5% maxHP per frame
     },
     swarm: {
         name: 'Swarm',
@@ -374,7 +374,7 @@ const ENEMY_TRAITS = {
         shape: 'hexagon',
         resist: { green: 0.5, blue: 0.5 }, // Phases through projectiles
         weak: { purple: 1.6, red: 1.3 },   // Beams/explosions hit regardless
-        phaseChance: 0.3, // 30% chance to dodge projectile hits
+        phaseChance: 0.4, // 40% chance to dodge projectile hits
     },
 };
 
@@ -390,34 +390,71 @@ function getDamageMultiplier(towerType, enemyTrait) {
 // === WAVE COMPOSITION SYSTEM ===
 function getWaveConfig(level, wave) {
     let difficulty = (level - 1) * 3 + wave;
-    let baseHP = 18 + difficulty * 5 + Math.pow(difficulty, 1.25);
-    let baseCount = 5 + Math.floor(difficulty * 0.35);
-    let baseSpeed = 0.9 + Math.min(difficulty * 0.018, 1.2);
-    let baseReward = 5 + Math.floor(difficulty * 0.4);
+
+    // Exponential HP scaling for late game pressure
+    let baseHP;
+    if (level <= 5) {
+        baseHP = 18 + difficulty * 5 + Math.pow(difficulty, 1.2);
+    } else if (level <= 15) {
+        baseHP = 30 + difficulty * 8 + Math.pow(difficulty, 1.5);
+    } else {
+        baseHP = 50 + difficulty * 12 + Math.pow(difficulty, 1.8);
+    }
+
+    // Enemy count ramps up significantly late game
+    let baseCount;
+    if (level <= 5) {
+        baseCount = 5 + Math.floor(difficulty * 0.3);
+    } else if (level <= 15) {
+        baseCount = 6 + Math.floor(difficulty * 0.5);
+    } else {
+        baseCount = 8 + Math.floor(difficulty * 0.7);
+    }
+
+    // Speed increases more aggressively
+    let baseSpeed = 0.9 + Math.min(difficulty * 0.025, 2.0);
+    if (level > 20) baseSpeed += 0.3;
+
+    // Rewards scale slower than difficulty (economy tightens)
+    let baseReward = 5 + Math.floor(difficulty * 0.3);
+    if (level > 15) baseReward = Math.floor(baseReward * 0.8);
 
     // Determine wave composition (mixed enemies!)
     let groups = [];
 
     if (wave === wavesPerLevel) {
-        // Boss wave: 1-2 bosses + escorts
+        // Boss wave scales dramatically
+        let bossHPMult = 12 + level * 2;
+        let bossCount = 1 + Math.floor(level / 8);
         groups.push({
             trait: getBossTrait(level),
-            count: 1 + Math.floor(level / 12),
-            hpMult: 12,
-            speedMult: 0.4,
-            rewardMult: 8,
-            size: 18,
+            count: bossCount,
+            hpMult: bossHPMult,
+            speedMult: 0.35 + level * 0.01,
+            rewardMult: 6,
+            size: 18 + Math.floor(level / 5),
         });
-        // Add escorts in later levels
+        // Escorts get nastier
         if (level > 3) {
             let escortTrait = getRandomTrait(level, true);
             groups.push({
                 trait: escortTrait,
-                count: 3 + Math.floor(level / 5),
-                hpMult: 0.6,
-                speedMult: 1.2,
-                rewardMult: 0.5,
+                count: 4 + Math.floor(level / 3),
+                hpMult: 0.8 + level * 0.05,
+                speedMult: 1.3,
+                rewardMult: 0.4,
                 size: 8,
+            });
+        }
+        // Second escort group in very late game
+        if (level > 18) {
+            groups.push({
+                trait: getRandomTrait(level, true),
+                count: 5 + Math.floor(level / 4),
+                hpMult: 0.6,
+                speedMult: 1.6,
+                rewardMult: 0.3,
+                size: 7,
             });
         }
     } else if (level <= 2) {
@@ -425,21 +462,32 @@ function getWaveConfig(level, wave) {
         let trait = wave <= 2 ? 'normal' : (wave <= 4 ? 'fast' : 'normal');
         groups.push({ trait, count: baseCount, hpMult: 1, speedMult: 1, rewardMult: 1, size: 10 });
     } else {
-        // Mixed waves! Multiple enemy types per wave
-        let numGroups = level < 5 ? 1 : (level < 10 ? 2 : (level < 20 ? 2 + Math.floor(Math.random() * 2) : 3));
+        // Mixed waves! More groups at higher levels
+        let numGroups;
+        if (level < 5) numGroups = 1 + (Math.random() < 0.3 ? 1 : 0);
+        else if (level < 10) numGroups = 2;
+        else if (level < 20) numGroups = 2 + Math.floor(Math.random() * 2);
+        else numGroups = 3 + Math.floor(Math.random() * 2);
+
         let remainingCount = baseCount;
 
         for (let g = 0; g < numGroups; g++) {
             let trait = getRandomTrait(level, false);
-            let groupCount = g === numGroups - 1 ? remainingCount : Math.ceil(remainingCount / (numGroups - g) * (0.5 + Math.random() * 0.5));
+            let groupCount = g === numGroups - 1 ? remainingCount : Math.ceil(remainingCount / (numGroups - g) * (0.4 + Math.random() * 0.6));
             groupCount = Math.max(2, groupCount);
-            remainingCount -= groupCount;
+            remainingCount = Math.max(2, remainingCount - groupCount);
+
+            // Late game groups get HP/speed boosts
+            let groupHPMult = 1.0;
+            let groupSpeedMult = 1.0;
+            if (level > 12) groupHPMult += (level - 12) * 0.08;
+            if (level > 18) groupSpeedMult += (level - 18) * 0.04;
 
             groups.push({
                 trait: trait,
                 count: groupCount,
-                hpMult: 1,
-                speedMult: 1,
+                hpMult: groupHPMult,
+                speedMult: groupSpeedMult,
                 rewardMult: 1,
                 size: 10,
             });
@@ -460,8 +508,14 @@ function getRandomTrait(level, isEscort) {
     if (level >= 10) available.push('regen');
     if (level >= 14) available.push('phase');
 
-    // Weight toward harder types at higher levels
-    if (level > 10 && Math.random() < 0.3) {
+    // Late game: heavily weight toward dangerous types
+    if (level > 15) {
+        available = available.filter(t => t !== 'normal');
+        // Double-add the hardest types for higher chance
+        if (level > 20) {
+            available.push('phase', 'regen', 'camo');
+        }
+    } else if (level > 8 && Math.random() < 0.4) {
         available = available.filter(t => t !== 'normal');
     }
 
@@ -473,7 +527,8 @@ function getBossTrait(level) {
     if (level <= 6) return 'shielded';
     if (level <= 10) return Math.random() < 0.5 ? 'regen' : 'armored';
     if (level <= 15) return Math.random() < 0.5 ? 'phase' : 'shielded';
-    let bossTraits = ['armored', 'shielded', 'regen', 'phase'];
+    // Late game bosses get the worst traits
+    let bossTraits = ['regen', 'phase', 'shielded'];
     return bossTraits[Math.floor(Math.random() * bossTraits.length)];
 }
 
@@ -1312,9 +1367,16 @@ function levelComplete() {
     playSound('levelup');
     upgradePoints += 2 + Math.floor(currentLevel / 5);
 
-    // Level completion bonus: flat bonus + percentage of current money
-    let levelBonus = 60 + currentLevel * 15;
-    let interestBonus = Math.floor(money * 0.10);
+    // Level completion bonus: scales less generously in late game
+    let levelBonus;
+    if (currentLevel <= 5) {
+        levelBonus = 50 + currentLevel * 12;
+    } else if (currentLevel <= 15) {
+        levelBonus = 60 + currentLevel * 8;
+    } else {
+        levelBonus = 70 + currentLevel * 5; // Economy tightens late
+    }
+    let interestBonus = Math.floor(money * 0.05);
     money += levelBonus + interestBonus;
 
     floatingTexts.push({
