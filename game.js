@@ -357,7 +357,7 @@ const ENEMY_TRAITS = {
         shape: 'diamond',
         resist: { blue: 0.4 }, // Regen resists slow damage
         weak: { purple: 1.8, red: 1.5 }, // High burst damage kills before regen
-        regenRate: 0.015, // Regens 1.5% maxHP per frame
+        regenRate: 0.002, // Regens 0.2% maxHP per frame (~12%/sec at 60fps)
     },
     swarm: {
         name: 'Swarm',
@@ -384,7 +384,8 @@ function getDamageMultiplier(towerType, enemyTrait) {
     let mult = 1.0;
     if (traitDef.resist[towerType]) mult *= traitDef.resist[towerType];
     if (traitDef.weak[towerType]) mult *= traitDef.weak[towerType];
-    return mult;
+    // Floor: nothing is EVER fully immune - minimum 15% damage always gets through
+    return Math.max(0.15, mult);
 }
 
 // === WAVE COMPOSITION SYSTEM ===
@@ -1083,9 +1084,14 @@ function updateEnemy(e) {
         if (e.slowTimer <= 0) e.slowAmt = 1;
     }
 
-    // Regeneration
+    // Regeneration (capped - can only regen up to 50% of damage taken)
     if (e.regenRate > 0 && e.hp < e.maxHp) {
-        e.hp = Math.min(e.maxHp, e.hp + e.maxHp * e.regenRate);
+        let maxRegen = e.maxHp * 0.5; // Can never regen above 50% of max
+        let regenCap = e.maxHp - maxRegen; // Minimum HP it can regen back to
+        let targetHP = Math.min(regenCap, e.maxHp);
+        if (e.hp < targetHP) {
+            e.hp = Math.min(targetHP, e.hp + e.maxHp * e.regenRate);
+        }
     }
 
     if (dist <= speed) {
