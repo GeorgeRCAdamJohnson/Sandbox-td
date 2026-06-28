@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Vectron TD - Tower Defense</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -11,17 +11,18 @@
             overflow: hidden;
             font-family: 'Courier New', monospace;
             color: #00ffc8;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
-        #gameContainer { display: none; width: 100vw; height: 100vh; }
+        #gameContainer { display: none; width: 100vw; height: 100vh; position: relative; }
         #gameCanvas {
             display: block;
             cursor: crosshair;
             border: 1px solid rgba(0,255,200,0.3);
-            position: absolute;
-            top: 50%;
-            left: calc(50% - 120px);
-            transform: translate(-50%, -50%);
             box-shadow: 0 0 30px rgba(0,255,200,0.1);
+            touch-action: none;
         }
         #sidebar {
             position: fixed;
@@ -35,6 +36,60 @@
             gap: 8px;
             overflow-y: auto;
             z-index: 100;
+        }
+
+        /* Mobile: sidebar goes to bottom */
+        @media (max-width: 900px), (orientation: portrait) {
+            #sidebar {
+                position: fixed;
+                right: 0; left: 0; bottom: 0; top: auto;
+                width: 100%;
+                height: auto;
+                max-height: 40vh;
+                flex-direction: column;
+                border-left: none;
+                border-top: 1px solid rgba(0,255,200,0.3);
+                padding: 8px;
+                gap: 6px;
+            }
+            #gameCanvas {
+                position: static !important;
+                transform: none !important;
+                width: 100vw !important;
+                height: auto !important;
+            }
+            .panel h3 { font-size: 9px; }
+            .stat-row { font-size: 10px; }
+            .tower-grid { grid-template-columns: 1fr 1fr 1fr 1fr; }
+            .tower-icon { font-size: 16px; }
+            .tower-btn { padding: 6px 2px; font-size: 8px; }
+            #waveBtn { padding: 10px; font-size: 12px; }
+        }
+
+        /* Very small phones */
+        @media (max-width: 500px) {
+            #sidebar { max-height: 35vh; padding: 6px; gap: 4px; }
+            .tower-grid { gap: 3px; }
+            .tower-btn { padding: 5px 2px; }
+            .tower-icon { font-size: 14px; }
+        }
+
+        /* Deselect button for mobile */
+        #deselectBtn {
+            display: none;
+            background: rgba(255,100,100,0.1);
+            border: 1px solid rgba(255,100,100,0.5);
+            color: #ff8888;
+            padding: 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        @media (max-width: 900px), (orientation: portrait) {
+            #deselectBtn { display: block; }
         }
         .panel {
             border: 1px solid rgba(0,255,200,0.15);
@@ -216,6 +271,7 @@
             </div>
 
             <button id="waveBtn" onclick="sendNextWave()">Wave 1/5</button>
+            <button id="deselectBtn" onclick="deselectAll()">✕ DESELECT</button>
 
             <div class="panel">
                 <h3>Speed</h3>

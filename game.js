@@ -1548,37 +1548,93 @@ function continueToNextLevel() {
 
 
 // === INPUT ===
+let isMobile = false;
+
 function setupInput() {
+    isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
     canvas.addEventListener('mousemove', (e) => {
         let rect = canvas.getBoundingClientRect();
-        let mx = e.clientX - rect.left;
-        let my = e.clientY - rect.top;
+        let scaleX = CANVAS_W / rect.width;
+        let scaleY = CANVAS_H / rect.height;
+        let mx = (e.clientX - rect.left) * scaleX;
+        let my = (e.clientY - rect.top) * scaleY;
         hoveredCell = { col: Math.floor(mx / CELL_SIZE), row: Math.floor(my / CELL_SIZE) };
     });
 
     canvas.addEventListener('mouseleave', () => { hoveredCell = null; });
 
     canvas.addEventListener('click', (e) => {
-        let rect = canvas.getBoundingClientRect();
-        let mx = e.clientX - rect.left;
-        let my = e.clientY - rect.top;
-        let col = Math.floor(mx / CELL_SIZE);
-        let row = Math.floor(my / CELL_SIZE);
-
-        if (selectedTowerType) {
-            placeTower(col, row);
-        } else {
-            selectExistingTower(col, row);
-        }
+        handleCanvasClick(e.clientX, e.clientY);
     });
 
     canvas.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        selectedTowerType = null;
-        selectedTower = null;
-        document.querySelectorAll('.tower-btn').forEach(b => b.classList.remove('selected'));
-        document.getElementById('towerInfoPanel').style.display = 'none';
+        deselectAll();
     });
+
+    // Touch support
+    canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        let touch = e.touches[0];
+        let rect = canvas.getBoundingClientRect();
+        let scaleX = CANVAS_W / rect.width;
+        let scaleY = CANVAS_H / rect.height;
+        let mx = (touch.clientX - rect.left) * scaleX;
+        let my = (touch.clientY - rect.top) * scaleY;
+        hoveredCell = { col: Math.floor(mx / CELL_SIZE), row: Math.floor(my / CELL_SIZE) };
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        let touch = e.touches[0];
+        let rect = canvas.getBoundingClientRect();
+        let scaleX = CANVAS_W / rect.width;
+        let scaleY = CANVAS_H / rect.height;
+        let mx = (touch.clientX - rect.left) * scaleX;
+        let my = (touch.clientY - rect.top) * scaleY;
+        hoveredCell = { col: Math.floor(mx / CELL_SIZE), row: Math.floor(my / CELL_SIZE) };
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        if (hoveredCell) {
+            handleCanvasClick(
+                hoveredCell.col * CELL_SIZE + CELL_SIZE / 2,
+                hoveredCell.row * CELL_SIZE + CELL_SIZE / 2,
+                true
+            );
+        }
+    }, { passive: false });
+}
+
+function handleCanvasClick(clientX, clientY, fromTouch) {
+    let col, row;
+    if (fromTouch && hoveredCell) {
+        col = hoveredCell.col;
+        row = hoveredCell.row;
+    } else {
+        let rect = canvas.getBoundingClientRect();
+        let scaleX = CANVAS_W / rect.width;
+        let scaleY = CANVAS_H / rect.height;
+        let mx = (clientX - rect.left) * scaleX;
+        let my = (clientY - rect.top) * scaleY;
+        col = Math.floor(mx / CELL_SIZE);
+        row = Math.floor(my / CELL_SIZE);
+    }
+
+    if (selectedTowerType) {
+        placeTower(col, row);
+    } else {
+        selectExistingTower(col, row);
+    }
+}
+
+function deselectAll() {
+    selectedTowerType = null;
+    selectedTower = null;
+    document.querySelectorAll('.tower-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('towerInfoPanel').style.display = 'none';
 }
 
 function placeTower(col, row) {
@@ -1764,9 +1820,43 @@ function startGame() {
     canvas.width = CANVAS_W;
     canvas.height = CANVAS_H;
     ctx = canvas.getContext('2d');
-    setupInput();
 
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 100));
+
+    setupInput();
     startLevel(1);
+}
+
+function resizeCanvas() {
+    let isMobileLayout = window.innerWidth <= 900 || window.innerHeight < window.innerWidth * 0.7;
+
+    if (isMobileLayout) {
+        // Mobile: canvas fills width, sidebar below
+        let maxW = window.innerWidth;
+        let maxH = window.innerHeight * 0.6; // Leave room for bottom sidebar
+        let scale = Math.min(maxW / CANVAS_W, maxH / CANVAS_H);
+        canvas.style.width = (CANVAS_W * scale) + 'px';
+        canvas.style.height = (CANVAS_H * scale) + 'px';
+        canvas.style.position = 'static';
+        canvas.style.transform = 'none';
+        canvas.style.margin = '0 auto';
+        canvas.style.display = 'block';
+    } else {
+        // Desktop: canvas centered with sidebar on right
+        let sidebarW = 240;
+        let maxW = window.innerWidth - sidebarW;
+        let maxH = window.innerHeight;
+        let scale = Math.min(maxW / CANVAS_W, maxH / CANVAS_H, 1);
+        canvas.style.width = (CANVAS_W * scale) + 'px';
+        canvas.style.height = (CANVAS_H * scale) + 'px';
+        canvas.style.position = 'absolute';
+        canvas.style.top = '50%';
+        canvas.style.left = `calc(50% - ${sidebarW / 2}px)`;
+        canvas.style.transform = 'translate(-50%, -50%)';
+        canvas.style.margin = '';
+    }
 }
 
 // Prevent context menu globally
