@@ -755,13 +755,21 @@ function drawTowers() {
 
         // Range ring for selected
         if (tower === selectedTower) {
-            ctx.strokeStyle = def.color.replace(')', ',0.25)').replace('rgb', 'rgba');
-            ctx.lineWidth = 1;
-            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = def.color;
+            ctx.globalAlpha = 0.7;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 4]);
             ctx.beginPath();
             ctx.arc(x, y, tower.range * CELL_SIZE, 0, Math.PI * 2);
             ctx.stroke();
             ctx.setLineDash([]);
+            // Range fill
+            ctx.fillStyle = def.color;
+            ctx.globalAlpha = 0.05;
+            ctx.beginPath();
+            ctx.arc(x, y, tower.range * CELL_SIZE, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
         }
 
         // Tower base glow
@@ -1003,13 +1011,19 @@ function drawHoverPreview() {
     let range = def.range * CELL_SIZE;
 
     // Range circle
-    ctx.strokeStyle = canPlace ? 'rgba(0,255,200,0.3)' : 'rgba(255,0,50,0.3)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = canPlace ? 'rgba(0,255,200,0.7)' : 'rgba(255,0,50,0.7)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
     ctx.beginPath();
     ctx.arc(x, y, range, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
+
+    // Range fill
+    ctx.fillStyle = canPlace ? 'rgba(0,255,200,0.06)' : 'rgba(255,0,50,0.06)';
+    ctx.beginPath();
+    ctx.arc(x, y, range, 0, Math.PI * 2);
+    ctx.fill();
 
     // Ghost tower
     ctx.globalAlpha = 0.5;
