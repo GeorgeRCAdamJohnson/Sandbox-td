@@ -755,19 +755,20 @@ function drawTowers() {
 
         // Range ring for selected
         if (tower === selectedTower) {
+            let actualRange = getTowerStats(tower.type, tower.isSuper).range * CELL_SIZE;
             ctx.strokeStyle = def.color;
-            ctx.globalAlpha = 0.7;
-            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.8;
+            ctx.lineWidth = 2.5;
             ctx.setLineDash([6, 4]);
             ctx.beginPath();
-            ctx.arc(x, y, tower.range * CELL_SIZE, 0, Math.PI * 2);
+            ctx.arc(x, y, actualRange, 0, Math.PI * 2);
             ctx.stroke();
             ctx.setLineDash([]);
             // Range fill
             ctx.fillStyle = def.color;
-            ctx.globalAlpha = 0.05;
+            ctx.globalAlpha = 0.07;
             ctx.beginPath();
-            ctx.arc(x, y, tower.range * CELL_SIZE, 0, Math.PI * 2);
+            ctx.arc(x, y, actualRange, 0, Math.PI * 2);
             ctx.fill();
             ctx.globalAlpha = 1;
         }
@@ -1008,7 +1009,9 @@ function drawHoverPreview() {
     let x = col * CELL_SIZE + CELL_SIZE / 2;
     let y = row * CELL_SIZE + CELL_SIZE / 2;
     let canPlace = grid[row][col] === 0;
-    let range = def.range * CELL_SIZE;
+    let type = selectedTowerType.startsWith('super_') ? selectedTowerType.replace('super_', '') : selectedTowerType;
+    let isSuper = selectedTowerType.startsWith('super_');
+    let range = getTowerStats(type, isSuper).range * CELL_SIZE;
 
     // Range circle
     ctx.strokeStyle = canPlace ? 'rgba(0,255,200,0.7)' : 'rgba(255,0,50,0.7)';
@@ -1158,7 +1161,7 @@ function updateTower(tower) {
 function findTarget(tower) {
     let best = null;
     let bestVal = -Infinity;
-    let rangePixels = tower.range * CELL_SIZE;
+    let rangePixels = getTowerStats(tower.type, tower.isSuper).range * CELL_SIZE;
 
     for (let e of enemies) {
         let dx = e.x - tower.x;
