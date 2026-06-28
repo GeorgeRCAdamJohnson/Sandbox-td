@@ -1830,33 +1830,14 @@ function startGame() {
 }
 
 function resizeCanvas() {
-    let isMobileLayout = window.innerWidth <= 900 || window.innerHeight < window.innerWidth * 0.7;
+    let wrap = document.getElementById('canvasWrap');
+    if (!wrap) return;
+    let maxW = wrap.clientWidth - 4; // small border margin
+    let maxH = wrap.clientHeight - 4;
 
-    if (isMobileLayout) {
-        // Mobile: canvas fills width, sidebar below
-        let maxW = window.innerWidth;
-        let maxH = window.innerHeight * 0.6; // Leave room for bottom sidebar
-        let scale = Math.min(maxW / CANVAS_W, maxH / CANVAS_H);
-        canvas.style.width = (CANVAS_W * scale) + 'px';
-        canvas.style.height = (CANVAS_H * scale) + 'px';
-        canvas.style.position = 'static';
-        canvas.style.transform = 'none';
-        canvas.style.margin = '0 auto';
-        canvas.style.display = 'block';
-    } else {
-        // Desktop: canvas centered with sidebar on right
-        let sidebarW = 240;
-        let maxW = window.innerWidth - sidebarW;
-        let maxH = window.innerHeight;
-        let scale = Math.min(maxW / CANVAS_W, maxH / CANVAS_H, 1);
-        canvas.style.width = (CANVAS_W * scale) + 'px';
-        canvas.style.height = (CANVAS_H * scale) + 'px';
-        canvas.style.position = 'absolute';
-        canvas.style.top = '50%';
-        canvas.style.left = `calc(50% - ${sidebarW / 2}px)`;
-        canvas.style.transform = 'translate(-50%, -50%)';
-        canvas.style.margin = '';
-    }
+    let scale = Math.min(maxW / CANVAS_W, maxH / CANVAS_H);
+    canvas.style.width = Math.floor(CANVAS_W * scale) + 'px';
+    canvas.style.height = Math.floor(CANVAS_H * scale) + 'px';
 }
 
 // Prevent context menu globally
