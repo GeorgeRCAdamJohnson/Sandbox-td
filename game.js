@@ -391,33 +391,39 @@ function getDamageMultiplier(towerType, enemyTrait) {
 function getWaveConfig(level, wave) {
     let difficulty = (level - 1) * 3 + wave;
 
-    // Exponential HP scaling for late game pressure
+    // Exponential HP scaling - aggressive throughout
     let baseHP;
-    if (level <= 5) {
-        baseHP = 18 + difficulty * 5 + Math.pow(difficulty, 1.2);
-    } else if (level <= 15) {
-        baseHP = 30 + difficulty * 8 + Math.pow(difficulty, 1.5);
+    if (level <= 3) {
+        baseHP = 20 + difficulty * 6 + Math.pow(difficulty, 1.2);
+    } else if (level <= 8) {
+        baseHP = 40 + difficulty * 10 + Math.pow(difficulty, 1.5);
+    } else if (level <= 18) {
+        baseHP = 80 + difficulty * 15 + Math.pow(difficulty, 1.75);
     } else {
-        baseHP = 50 + difficulty * 12 + Math.pow(difficulty, 1.8);
+        baseHP = 150 + difficulty * 25 + Math.pow(difficulty, 2.0);
     }
 
-    // Enemy count ramps up significantly late game
+    // Enemy count ramps up significantly
     let baseCount;
-    if (level <= 5) {
+    if (level <= 3) {
         baseCount = 5 + Math.floor(difficulty * 0.3);
-    } else if (level <= 15) {
-        baseCount = 6 + Math.floor(difficulty * 0.5);
+    } else if (level <= 10) {
+        baseCount = 7 + Math.floor(difficulty * 0.5);
+    } else if (level <= 20) {
+        baseCount = 10 + Math.floor(difficulty * 0.65);
     } else {
-        baseCount = 8 + Math.floor(difficulty * 0.7);
+        baseCount = 12 + Math.floor(difficulty * 0.8);
     }
 
     // Speed increases more aggressively
-    let baseSpeed = 0.9 + Math.min(difficulty * 0.025, 2.0);
-    if (level > 20) baseSpeed += 0.3;
+    let baseSpeed = 1.0 + Math.min(difficulty * 0.03, 2.2);
+    if (level > 15) baseSpeed += 0.3;
+    if (level > 25) baseSpeed += 0.3;
 
-    // Rewards scale slower than difficulty (economy tightens)
-    let baseReward = 5 + Math.floor(difficulty * 0.3);
-    if (level > 15) baseReward = Math.floor(baseReward * 0.8);
+    // Rewards scale much slower than difficulty (constant pressure)
+    let baseReward = 4 + Math.floor(difficulty * 0.2);
+    if (level > 10) baseReward = Math.floor(baseReward * 0.75);
+    if (level > 20) baseReward = Math.floor(baseReward * 0.7);
 
     // Determine wave composition (mixed enemies!)
     let groups = [];
@@ -1367,16 +1373,16 @@ function levelComplete() {
     playSound('levelup');
     upgradePoints += 2 + Math.floor(currentLevel / 5);
 
-    // Level completion bonus: scales less generously in late game
+    // Level completion bonus: tight economy forces decisions
     let levelBonus;
-    if (currentLevel <= 5) {
-        levelBonus = 50 + currentLevel * 12;
-    } else if (currentLevel <= 15) {
-        levelBonus = 60 + currentLevel * 8;
+    if (currentLevel <= 3) {
+        levelBonus = 40 + currentLevel * 10;
+    } else if (currentLevel <= 10) {
+        levelBonus = 50 + currentLevel * 6;
     } else {
-        levelBonus = 70 + currentLevel * 5; // Economy tightens late
+        levelBonus = 55 + currentLevel * 3; // Barely keeps up
     }
-    let interestBonus = Math.floor(money * 0.05);
+    let interestBonus = Math.floor(money * 0.03);
     money += levelBonus + interestBonus;
 
     floatingTexts.push({
@@ -1434,6 +1440,13 @@ function sendNextWave() {
     if (waveInProgress || gameState !== 'playing') return;
     if (currentWave >= wavesPerLevel) return;
 
+    // Confirm if no towers placed
+    if (towers.length === 0) {
+        if (!confirm('No towers placed! Are you sure you want to send the wave?')) {
+            return;
+        }
+    }
+
     currentWaveConfig = getWaveConfig(currentLevel, currentWave + 1);
     currentWaveGroups = currentWaveConfig.groups;
     currentGroupIdx = 0;
@@ -1449,7 +1462,7 @@ function sendNextWave() {
 
     enemiesSpawned = 0;
     spawnTimer = 0;
-    spawnInterval = 20;
+    spawnInterval = Math.max(8, 20 - Math.floor(currentLevel / 3)); // Gets faster each level
     waveInProgress = true;
 
     document.getElementById('waveBtn').disabled = true;
