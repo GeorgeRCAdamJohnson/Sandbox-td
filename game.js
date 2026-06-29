@@ -199,43 +199,50 @@ function generateMap() {
     }
     xPositions.push(GRID_COLS - 1); // end at right edge
 
-    // Generate Y positions for each turn - allow good variation but not extreme
+    // Generate Y positions for each turn - full grid range for interesting paths
     let yPositions = [startY];
     for (let i = 1; i < xPositions.length - 1; i++) {
-        let prevY = yPositions[i - 1];
-        // Allow ±6 cells vertical movement - enough to wind but not extreme columns
-        let minY = Math.max(1, prevY - 6);
-        let maxY = Math.min(GRID_ROWS - 2, prevY + 6);
-        // Bias away from center for more interesting paths
-        let newY;
-        if (prevY < GRID_ROWS / 2) {
-            newY = prevY + 2 + Math.floor(Math.random() * 5); // tend downward
-        } else {
-            newY = prevY - 2 - Math.floor(Math.random() * 5); // tend upward
-        }
-        yPositions.push(Math.max(1, Math.min(GRID_ROWS - 2, newY)));
+        yPositions.push(1 + Math.floor(Math.random() * (GRID_ROWS - 2)));
     }
     yPositions.push(endY);
 
-    // Build the path cell by cell - always horizontal first for cleaner look
+    // Build the path cell by cell
     for (let seg = 0; seg < xPositions.length - 1; seg++) {
         let x0 = xPositions[seg], y0 = yPositions[seg];
         let x1 = xPositions[seg + 1], y1 = yPositions[seg + 1];
 
-        // Always horizontal first, then short vertical connector
-        let stepX = x1 > x0 ? 1 : -1;
-        let x = x0;
-        while (x !== x1) {
-            cellPath.push({ x: x, y: y0 });
-            x += stepX;
-        }
-        // Then vertical
-        if (y0 !== y1) {
+        // Alternate: horizontal first on even, vertical first on odd
+        if (seg % 2 === 0) {
+            // Horizontal first
+            let stepX = x1 > x0 ? 1 : -1;
+            let x = x0;
+            while (x !== x1) {
+                cellPath.push({ x: x, y: y0 });
+                x += stepX;
+            }
+            // Then vertical
+            if (y0 !== y1) {
+                let stepY = y1 > y0 ? 1 : -1;
+                let y = y0;
+                while (y !== y1) {
+                    cellPath.push({ x: x1, y: y });
+                    y += stepY;
+                }
+            }
+        } else {
+            // Vertical first
             let stepY = y1 > y0 ? 1 : -1;
             let y = y0;
             while (y !== y1) {
-                cellPath.push({ x: x1, y: y });
+                cellPath.push({ x: x0, y: y });
                 y += stepY;
+            }
+            // Then horizontal
+            let stepX = x1 > x0 ? 1 : -1;
+            let x = x0;
+            while (x !== x1) {
+                cellPath.push({ x: x, y: y1 });
+                x += stepX;
             }
         }
     }
