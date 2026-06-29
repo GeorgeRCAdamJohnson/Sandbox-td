@@ -42,6 +42,13 @@ let animFrame = 0;
 let gridPulse = 0;
 let tronLineOffset = 0;
 
+// Path extension system
+let pathExtendMode = false;
+let pathExtensions = 0; // Number of extensions used this level
+const MAX_EXTENSIONS_PER_LEVEL = 3;
+const EXTENSION_LENGTH = 5; // cells added per extension
+const EXTENSION_BASE_COST = 100;
+
 // Upgrade system
 let upgradePoints = 0;
 let towerUpgrades = {
@@ -71,15 +78,15 @@ const TOWER_DEFS = {
     },
     red: {
         name: 'Rocket',
-        cost: 70,
+        cost: 65,
         color: '#ff3355',
         colorDim: 'rgba(255,51,85,0.3)',
-        range: 4,
-        damage: 30,
-        fireRate: 50,
-        projSpeed: 7,
+        range: 4.5,
+        damage: 45,
+        fireRate: 35,
+        projSpeed: 10,
         projType: 'rocket',
-        splash: 1.5,
+        splash: 2.5,
         desc: 'Splash damage rockets',
     },
     purple: {
@@ -125,14 +132,14 @@ const SUPER_DEFS = {
     },
     red: {
         name: 'Nova',
-        cost: 250,
+        cost: 220,
         color: '#ff8844',
         range: 6,
-        damage: 100,
-        fireRate: 80,
-        projSpeed: 5,
+        damage: 150,
+        fireRate: 55,
+        projSpeed: 8,
         projType: 'rocket',
-        splash: 3,
+        splash: 4,
         desc: 'Massive area explosion',
     },
     purple: {
@@ -304,6 +311,175 @@ function generateMap() {
     }
 }
 
+
+// === PATH EXTENSION SYSTEM ===
+function getExtensionCost() {
+    return EXTENSION_BASE_COST + pathExtensions * 50 + currentLevel * 10;
+}
+
+function canExtendPath() {
+    return currentLevel >= 10 && pathExtensions < MAX_EXTENSIONS_PER_LEVEL && !waveInProgress;
+}
+
+function extendPath() {
+    if (!canExtendPath()) return;
+    let cost = getExtensionCost();
+    if (money < cost) return;
+
+    // Find a suitable spot on the path to insert a detour
+    // Pick a random segment in the middle of the path
+    let insertIdx = Math.floor(pathCells.length * 0.3 + Math.random() * pathCells.length * 0.4);
+    let cell = pathCells[insertIdx];
+
+    // Try to create a U-shaped detour: go perpendicular for 2, along for EXTENSION_LENGTH, back for 2
+    let directions = [{dx: 0, dy: 1}, {dx: 0, dy: -1}, {dx: 1, dy: 0}, {dx: -1, dy: 0}];
+    // Shuffle
+    for (let i = directions.length - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        [directions[i], directions[j]] = [directions[j], directions[i]];
+    }
+
+    let detourCells = null;
+
+    for (let dir of directions) {
+        // Try building a detour in this direction
+        let perpDx = dir.dx;
+        let perpDy = dir.dy;
+        // The "along" direction is perpendicular to perp
+        let alongDx = perpDy !== 0 ? 1 : 0;
+        let alongDy = perpDx !== 0 ? 1 : 0;
+
+        let cells = [];
+        let valid = true;
+        let cx = cell.x, cy = cell.y;
+
+        // Step out perpendicular (2 cells)
+        for (let i = 0; i < 2; i++) {
+            cx += perpDx; cy += perpDy;
+            if (cx < 0 || cx >= GRID_COLS || cy < 0 || cy >= GRID_ROWS || grid[cy][cx] !== 0) { valid = false; break; }
+            cells.push({x: cx, y: cy});
+        }
+        if (!valid) continue;
+
+        // Step along (EXTENSION_LENGTH cells)
+        for (let i = 0; i < EXTENSION_LENGTH; i++) {
+            cx += alongDx; cy += alongDy;
+            if (cx < 0 || cx >= GRID_COLS || cy < 0 || cy >= GRID_ROWS || grid[cy][cx] !== 0) { valid = false; break; }
+            cells.push({x: cx, y: cy});
+        }
+        if (!valid) continue;
+
+        // Step back perpendicular (2 cells) to rejoin
+        for (let i = 0; i < 2; i++) {
+            cx -= perpDx; cy -= perpDy;
+            if (cx < 0 || cx >= GRID_COLS || cy < 0 || cy >= GRID_ROWS || (grid[cy][cx] !== 0 && grid[cy][cx] !== 1)) { valid = false; break; }
+            cells.push({x: cx, y: cy});
+        }
+        if (!valid) continue;
+
+        // Check if endpoint reconnects to path
+        let endCell = cells[cells.length - 1];
+        let reconnects = false;
+        for (let i = insertIdx + 1; i < Math.min(insertIdx + 8, pathCells.length); i++) {
+            if (pathCells[i].x === endCell.x && pathCells[i].y === endCell.y) {
+                reconnects = true;
+                break;
+            }
+        }
+
+        if (reconnects || (grid[endCell.y][endCell.x] === 1)) {
+            detourCells = cells;
+            break;
+        }
+
+        // If no reconnect, still use it as a dead-end loop that returns
+        // Go back along the opposite direction
+        cells = [];
+        valid = true;
+        cx = cell.x; cy = cell.y;
+
+        // Out 2
+        for (let i = 0; i < 2; i++) {
+            cx += perpDx; cy += perpDy;
+            if (cx < 0 || cx >= GRID_COLS || cy < 0 || cy >= GRID_ROWS || grid[cy][cx] !== 0) { valid = false; break; }
+            cells.push({x: cx, y: cy});
+        }
+        if (!valid) continue;
+
+        // Along EXTENSION_LENGTH
+        for (let i = 0; i < EXTENSION_LENGTH; i++) {
+            cx += alongDx; cy += alongDy;
+            if (cx < 0 || cx >= GRID_COLS || cy < 0 || cy >= GRID_ROWS || grid[cy][cx] !== 0) { valid = false; break; }
+            cells.push({x: cx, y: cy});
+        }
+        if (!valid) continue;
+
+        // Come back along
+        for (let i = 0; i < EXTENSION_LENGTH; i++) {
+            cx -= alongDx; cy -= alongDy;
+            // Skip cells we already have
+        }
+
+        // Just use the out-and-back (doubles back)
+        let backCells = [...cells].reverse().slice(1); // reverse minus the tip
+        cells = cells.concat(backCells);
+        detourCells = cells;
+        break;
+    }
+
+    if (!detourCells || detourCells.length === 0) {
+        // Fallback: simple straight extension at the end
+        let lastCell = pathCells[pathCells.length - 2]; // second to last
+        let prevCell = pathCells[pathCells.length - 3];
+        if (!lastCell || !prevCell) return;
+
+        let dx = lastCell.x - prevCell.x;
+        let dy = lastCell.y - prevCell.y;
+        // Extend perpendicular to path direction
+        let perpDx = dy !== 0 ? 1 : 0;
+        let perpDy = dx !== 0 ? 1 : 0;
+
+        detourCells = [];
+        let cx = lastCell.x, cy = lastCell.y;
+        for (let i = 0; i < EXTENSION_LENGTH; i++) {
+            cx += perpDx; cy += perpDy;
+            if (cx < 0 || cx >= GRID_COLS || cy < 0 || cy >= GRID_ROWS || grid[cy][cx] !== 0) break;
+            detourCells.push({x: cx, y: cy});
+        }
+        // And back
+        let back = [...detourCells].reverse().slice(1);
+        detourCells = detourCells.concat(back);
+    }
+
+    if (detourCells.length < 3) return; // not enough space
+
+    money -= cost;
+    pathExtensions++;
+
+    // Insert detour cells into path at the insertion point
+    for (let c of detourCells) {
+        grid[c.y][c.x] = 1;
+        pathCells.splice(insertIdx + 1, 0, c);
+        insertIdx++;
+    }
+
+    // Rebuild pixel path from pathCells
+    path = [];
+    for (let p of pathCells) {
+        path.push({
+            x: p.x * CELL_SIZE + CELL_SIZE / 2,
+            y: p.y * CELL_SIZE + CELL_SIZE / 2
+        });
+    }
+
+    updateHUD();
+    floatingTexts.push({
+        x: CANVAS_W / 2, y: CANVAS_H / 2,
+        text: 'PATH EXTENDED! +' + detourCells.length + ' cells',
+        color: '#ff8844', life: 60, maxLife: 60, vy: -0.5
+    });
+    playSound('levelup');
+}
 
 // === ENEMY TRAITS & EFFECTIVENESS SYSTEM ===
 // Enemy traits determine which towers are effective/ineffective
@@ -1441,6 +1617,8 @@ function startLevel(lvl) {
     particles = [];
     floatingTexts = [];
     towers = [];
+    pathExtensions = 0;
+    pathExtendMode = false;
 
     generateMap();
     updateHUD();
@@ -1773,6 +1951,23 @@ function updateHUD() {
         let btn = document.getElementById('btn-super_' + type);
         if (btn) btn.style.opacity = money < SUPER_DEFS[type].cost ? '0.4' : '1';
     });
+
+    // Extend path button
+    let extBtn = document.getElementById('extendBtn');
+    if (extBtn) {
+        if (canExtendPath()) {
+            let cost = getExtensionCost();
+            extBtn.style.display = 'block';
+            extBtn.textContent = `Extend Path ($${cost}) [${pathExtensions}/${MAX_EXTENSIONS_PER_LEVEL}]`;
+            extBtn.style.opacity = money >= cost ? '1' : '0.4';
+        } else if (currentLevel < 10) {
+            extBtn.style.display = 'none';
+        } else {
+            extBtn.style.display = 'block';
+            extBtn.textContent = waveInProgress ? 'Extend (between waves)' : `Extend (${pathExtensions}/${MAX_EXTENSIONS_PER_LEVEL} used)`;
+            extBtn.style.opacity = '0.3';
+        }
+    }
 }
 
 function updateSuperButtons() {
