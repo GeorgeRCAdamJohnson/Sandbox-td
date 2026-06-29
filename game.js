@@ -199,50 +199,36 @@ function generateMap() {
     }
     xPositions.push(GRID_COLS - 1); // end at right edge
 
-    // Generate Y positions for each turn
+    // Generate Y positions for each turn - constrain to avoid huge vertical runs
     let yPositions = [startY];
     for (let i = 1; i < xPositions.length - 1; i++) {
-        yPositions.push(1 + Math.floor(Math.random() * (GRID_ROWS - 2)));
+        let prevY = yPositions[i - 1];
+        // Max 4 cells vertical deviation from previous point
+        let minY = Math.max(1, prevY - 4);
+        let maxY = Math.min(GRID_ROWS - 2, prevY + 4);
+        yPositions.push(minY + Math.floor(Math.random() * (maxY - minY + 1)));
     }
     yPositions.push(endY);
 
-    // Build the path cell by cell
+    // Build the path cell by cell - always horizontal first for cleaner look
     for (let seg = 0; seg < xPositions.length - 1; seg++) {
         let x0 = xPositions[seg], y0 = yPositions[seg];
         let x1 = xPositions[seg + 1], y1 = yPositions[seg + 1];
 
-        // First move horizontally from x0 to x1 at y0
-        // Then move vertically from y0 to y1 at x1
-        // (or vertical first on alternating segments for variety)
-        if (seg % 2 === 0) {
-            // Horizontal first
-            let stepX = x1 > x0 ? 1 : -1;
-            let x = x0;
-            while (x !== x1) {
-                cellPath.push({ x: x, y: y0 });
-                x += stepX;
-            }
-            // Then vertical
+        // Always horizontal first, then short vertical connector
+        let stepX = x1 > x0 ? 1 : -1;
+        let x = x0;
+        while (x !== x1) {
+            cellPath.push({ x: x, y: y0 });
+            x += stepX;
+        }
+        // Then vertical
+        if (y0 !== y1) {
             let stepY = y1 > y0 ? 1 : -1;
             let y = y0;
             while (y !== y1) {
                 cellPath.push({ x: x1, y: y });
                 y += stepY;
-            }
-        } else {
-            // Vertical first
-            let stepY = y1 > y0 ? 1 : -1;
-            let y = y0;
-            while (y !== y1) {
-                cellPath.push({ x: x0, y: y });
-                y += stepY;
-            }
-            // Then horizontal
-            let stepX = x1 > x0 ? 1 : -1;
-            let x = x0;
-            while (x !== x1) {
-                cellPath.push({ x: x, y: y1 });
-                x += stepX;
             }
         }
     }
@@ -313,157 +299,84 @@ function generateMap() {
 
 
 // === PATH EXTENSION SYSTEM ===
+// Player manually draws path extensions cell-by-cell
+let pathExtendMode = false;
+let pathExtensions = 0;
+let extensionCellsPlaced = 0;
+let extensionCellsRemaining = 0;
+const MAX_EXTENSIONS_PER_LEVEL = 3;
+const EXTENSION_LENGTH = 5;
+const EXTENSION_BASE_COST = 100;
+
 function getExtensionCost() {
     return EXTENSION_BASE_COST + pathExtensions * 50 + currentLevel * 10;
 }
 
 function canExtendPath() {
-    return currentLevel >= 10 && pathExtensions < MAX_EXTENSIONS_PER_LEVEL && !waveInProgress;
+    return currentLevel >= 10 && pathExtensions < MAX_EXTENSIONS_PER_LEVEL && !waveInProgress && !pathExtendMode;
 }
 
-function extendPath() {
+function startPathExtend() {
     if (!canExtendPath()) return;
     let cost = getExtensionCost();
     if (money < cost) return;
 
-    // Find a suitable spot on the path to insert a detour
-    // Pick a random segment in the middle of the path
-    let insertIdx = Math.floor(pathCells.length * 0.3 + Math.random() * pathCells.length * 0.4);
-    let cell = pathCells[insertIdx];
+    money -= cost;
+    pathExtendMode = true;
+    extensionCellsPlaced = 0;
+    extensionCellsRemaining = EXTENSION_LENGTH;
+    selectedTowerType = null;
+    selectedTower = null;
+    document.querySelectorAll('.tower-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('towerInfoPanel').style.display = 'none';
 
-    // Try to create a U-shaped detour: go perpendicular for 2, along for EXTENSION_LENGTH, back for 2
-    let directions = [{dx: 0, dy: 1}, {dx: 0, dy: -1}, {dx: 1, dy: 0}, {dx: -1, dy: 0}];
-    // Shuffle
-    for (let i = directions.length - 1; i > 0; i--) {
-        let j = Math.floor(Math.random() * (i + 1));
-        [directions[i], directions[j]] = [directions[j], directions[i]];
-    }
+    updateHUD();
+    floatingTexts.push({
+        x: CANVAS_W / 2, y: 30,
+        text: 'TAP ' + EXTENSION_LENGTH + ' CELLS ADJACENT TO PATH',
+        color: '#ff8844', life: 90, maxLife: 90, vy: 0
+    });
+}
 
-    let detourCells = null;
+function placePathCell(col, row) {
+    if (!pathExtendMode || extensionCellsRemaining <= 0) return false;
+    if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) return false;
+    if (grid[row][col] !== 0) return false; // Must be empty
 
-    for (let dir of directions) {
-        // Try building a detour in this direction
-        let perpDx = dir.dx;
-        let perpDy = dir.dy;
-        // The "along" direction is perpendicular to perp
-        let alongDx = perpDy !== 0 ? 1 : 0;
-        let alongDy = perpDx !== 0 ? 1 : 0;
-
-        let cells = [];
-        let valid = true;
-        let cx = cell.x, cy = cell.y;
-
-        // Step out perpendicular (2 cells)
-        for (let i = 0; i < 2; i++) {
-            cx += perpDx; cy += perpDy;
-            if (cx < 0 || cx >= GRID_COLS || cy < 0 || cy >= GRID_ROWS || grid[cy][cx] !== 0) { valid = false; break; }
-            cells.push({x: cx, y: cy});
-        }
-        if (!valid) continue;
-
-        // Step along (EXTENSION_LENGTH cells)
-        for (let i = 0; i < EXTENSION_LENGTH; i++) {
-            cx += alongDx; cy += alongDy;
-            if (cx < 0 || cx >= GRID_COLS || cy < 0 || cy >= GRID_ROWS || grid[cy][cx] !== 0) { valid = false; break; }
-            cells.push({x: cx, y: cy});
-        }
-        if (!valid) continue;
-
-        // Step back perpendicular (2 cells) to rejoin
-        for (let i = 0; i < 2; i++) {
-            cx -= perpDx; cy -= perpDy;
-            if (cx < 0 || cx >= GRID_COLS || cy < 0 || cy >= GRID_ROWS || (grid[cy][cx] !== 0 && grid[cy][cx] !== 1)) { valid = false; break; }
-            cells.push({x: cx, y: cy});
-        }
-        if (!valid) continue;
-
-        // Check if endpoint reconnects to path
-        let endCell = cells[cells.length - 1];
-        let reconnects = false;
-        for (let i = insertIdx + 1; i < Math.min(insertIdx + 8, pathCells.length); i++) {
-            if (pathCells[i].x === endCell.x && pathCells[i].y === endCell.y) {
-                reconnects = true;
-                break;
-            }
-        }
-
-        if (reconnects || (grid[endCell.y][endCell.x] === 1)) {
-            detourCells = cells;
+    // Must be adjacent to existing path
+    let adjacent = false;
+    let adjDirections = [{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0}];
+    for (let d of adjDirections) {
+        let nx = col + d.dx, ny = row + d.dy;
+        if (nx >= 0 && nx < GRID_COLS && ny >= 0 && ny < GRID_ROWS && grid[ny][nx] === 1) {
+            adjacent = true;
             break;
         }
+    }
+    if (!adjacent) return false;
 
-        // If no reconnect, still use it as a dead-end loop that returns
-        // Go back along the opposite direction
-        cells = [];
-        valid = true;
-        cx = cell.x; cy = cell.y;
+    // Place the cell
+    grid[row][col] = 1;
+    extensionCellsPlaced++;
+    extensionCellsRemaining--;
 
-        // Out 2
-        for (let i = 0; i < 2; i++) {
-            cx += perpDx; cy += perpDy;
-            if (cx < 0 || cx >= GRID_COLS || cy < 0 || cy >= GRID_ROWS || grid[cy][cx] !== 0) { valid = false; break; }
-            cells.push({x: cx, y: cy});
+    // Find where to insert in pathCells (after nearest existing path cell)
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < pathCells.length; i++) {
+        let dx = pathCells[i].x - col;
+        let dy = pathCells[i].y - row;
+        let dist = Math.abs(dx) + Math.abs(dy);
+        if (dist === 1 && dist < bestDist) {
+            bestDist = dist;
+            bestIdx = i;
         }
-        if (!valid) continue;
-
-        // Along EXTENSION_LENGTH
-        for (let i = 0; i < EXTENSION_LENGTH; i++) {
-            cx += alongDx; cy += alongDy;
-            if (cx < 0 || cx >= GRID_COLS || cy < 0 || cy >= GRID_ROWS || grid[cy][cx] !== 0) { valid = false; break; }
-            cells.push({x: cx, y: cy});
-        }
-        if (!valid) continue;
-
-        // Come back along
-        for (let i = 0; i < EXTENSION_LENGTH; i++) {
-            cx -= alongDx; cy -= alongDy;
-            // Skip cells we already have
-        }
-
-        // Just use the out-and-back (doubles back)
-        let backCells = [...cells].reverse().slice(1); // reverse minus the tip
-        cells = cells.concat(backCells);
-        detourCells = cells;
-        break;
     }
 
-    if (!detourCells || detourCells.length === 0) {
-        // Fallback: simple straight extension at the end
-        let lastCell = pathCells[pathCells.length - 2]; // second to last
-        let prevCell = pathCells[pathCells.length - 3];
-        if (!lastCell || !prevCell) return;
+    // Insert after the nearest path cell
+    pathCells.splice(bestIdx + 1, 0, {x: col, y: row});
 
-        let dx = lastCell.x - prevCell.x;
-        let dy = lastCell.y - prevCell.y;
-        // Extend perpendicular to path direction
-        let perpDx = dy !== 0 ? 1 : 0;
-        let perpDy = dx !== 0 ? 1 : 0;
-
-        detourCells = [];
-        let cx = lastCell.x, cy = lastCell.y;
-        for (let i = 0; i < EXTENSION_LENGTH; i++) {
-            cx += perpDx; cy += perpDy;
-            if (cx < 0 || cx >= GRID_COLS || cy < 0 || cy >= GRID_ROWS || grid[cy][cx] !== 0) break;
-            detourCells.push({x: cx, y: cy});
-        }
-        // And back
-        let back = [...detourCells].reverse().slice(1);
-        detourCells = detourCells.concat(back);
-    }
-
-    if (detourCells.length < 3) return; // not enough space
-
-    money -= cost;
-    pathExtensions++;
-
-    // Insert detour cells into path at the insertion point
-    for (let c of detourCells) {
-        grid[c.y][c.x] = 1;
-        pathCells.splice(insertIdx + 1, 0, c);
-        insertIdx++;
-    }
-
-    // Rebuild pixel path from pathCells
+    // Rebuild pixel path
     path = [];
     for (let p of pathCells) {
         path.push({
@@ -472,13 +385,34 @@ function extendPath() {
         });
     }
 
+    if (extensionCellsRemaining <= 0) {
+        finishPathExtend();
+    }
+
     updateHUD();
+    return true;
+}
+
+function finishPathExtend() {
+    pathExtendMode = false;
+    pathExtensions++;
     floatingTexts.push({
         x: CANVAS_W / 2, y: CANVAS_H / 2,
-        text: 'PATH EXTENDED! +' + detourCells.length + ' cells',
+        text: 'PATH EXTENDED! +' + extensionCellsPlaced + ' cells',
         color: '#ff8844', life: 60, maxLife: 60, vy: -0.5
     });
     playSound('levelup');
+    updateHUD();
+}
+
+function cancelPathExtend() {
+    // Refund if cancelled with no cells placed
+    if (extensionCellsPlaced === 0) {
+        money += getExtensionCost();
+    }
+    pathExtendMode = false;
+    extensionCellsRemaining = 0;
+    updateHUD();
 }
 
 // === ENEMY TRAITS & EFFECTIVENESS SYSTEM ===
@@ -1173,9 +1107,38 @@ function drawFloatingTexts() {
 }
 
 function drawHoverPreview() {
-    if (!hoveredCell || !selectedTowerType) return;
+    if (!hoveredCell) return;
     let { col, row } = hoveredCell;
     if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) return;
+
+    // Path extension mode: show valid placement cells
+    if (pathExtendMode) {
+        let isAdjacentToPath = false;
+        let adjDirs = [{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0}];
+        for (let d of adjDirs) {
+            let nx = col + d.dx, ny = row + d.dy;
+            if (nx >= 0 && nx < GRID_COLS && ny >= 0 && ny < GRID_ROWS && grid[ny][nx] === 1) {
+                isAdjacentToPath = true;
+                break;
+            }
+        }
+        let canPlace = grid[row][col] === 0 && isAdjacentToPath;
+
+        ctx.fillStyle = canPlace ? 'rgba(255, 136, 68, 0.3)' : 'rgba(255, 0, 50, 0.15)';
+        ctx.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        ctx.strokeStyle = canPlace ? '#ff8844' : '#ff0033';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(col * CELL_SIZE + 1, row * CELL_SIZE + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+
+        // Show remaining cells count
+        ctx.fillStyle = '#ff8844';
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(extensionCellsRemaining + ' left', col * CELL_SIZE + CELL_SIZE / 2, row * CELL_SIZE - 5);
+        return;
+    }
+
+    if (!selectedTowerType) return;
 
     let def = selectedTowerType.startsWith('super_')
         ? SUPER_DEFS[selectedTowerType.replace('super_', '')]
@@ -1818,7 +1781,9 @@ function handleCanvasClick(clientX, clientY, fromTouch) {
         row = Math.floor(my / CELL_SIZE);
     }
 
-    if (selectedTowerType) {
+    if (pathExtendMode) {
+        placePathCell(col, row);
+    } else if (selectedTowerType) {
         placeTower(col, row);
     } else {
         selectExistingTower(col, row);
@@ -1828,6 +1793,7 @@ function handleCanvasClick(clientX, clientY, fromTouch) {
 function deselectAll() {
     selectedTowerType = null;
     selectedTower = null;
+    if (pathExtendMode) cancelPathExtend();
     document.querySelectorAll('.tower-btn').forEach(b => b.classList.remove('selected'));
     document.getElementById('towerInfoPanel').style.display = 'none';
 }
