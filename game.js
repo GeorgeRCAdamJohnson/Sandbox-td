@@ -300,13 +300,8 @@ function generateMap() {
 
 // === PATH EXTENSION SYSTEM ===
 // Player manually draws path extensions cell-by-cell
-let pathExtendMode = false;
-let pathExtensions = 0;
 let extensionCellsPlaced = 0;
 let extensionCellsRemaining = 0;
-const MAX_EXTENSIONS_PER_LEVEL = 3;
-const EXTENSION_LENGTH = 5;
-const EXTENSION_BASE_COST = 100;
 
 function getExtensionCost() {
     return EXTENSION_BASE_COST + pathExtensions * 50 + currentLevel * 10;
