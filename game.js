@@ -199,14 +199,21 @@ function generateMap() {
     }
     xPositions.push(GRID_COLS - 1); // end at right edge
 
-    // Generate Y positions for each turn - constrain to avoid huge vertical runs
+    // Generate Y positions for each turn - allow good variation but not extreme
     let yPositions = [startY];
     for (let i = 1; i < xPositions.length - 1; i++) {
         let prevY = yPositions[i - 1];
-        // Max 4 cells vertical deviation from previous point
-        let minY = Math.max(1, prevY - 4);
-        let maxY = Math.min(GRID_ROWS - 2, prevY + 4);
-        yPositions.push(minY + Math.floor(Math.random() * (maxY - minY + 1)));
+        // Allow ±6 cells vertical movement - enough to wind but not extreme columns
+        let minY = Math.max(1, prevY - 6);
+        let maxY = Math.min(GRID_ROWS - 2, prevY + 6);
+        // Bias away from center for more interesting paths
+        let newY;
+        if (prevY < GRID_ROWS / 2) {
+            newY = prevY + 2 + Math.floor(Math.random() * 5); // tend downward
+        } else {
+            newY = prevY - 2 - Math.floor(Math.random() * 5); // tend upward
+        }
+        yPositions.push(Math.max(1, Math.min(GRID_ROWS - 2, newY)));
     }
     yPositions.push(endY);
 
