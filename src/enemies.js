@@ -203,9 +203,11 @@ export function updateEnemy(e) {
         if (e.slowTimer <= 0) e.slowAmt = 1;
     }
 
-    // Regeneration
+    // Regeneration - weaker for high-HP enemies (bosses)
     if (e.regenRate > 0 && e.hp > e.maxHp * 0.4 && e.hp < e.maxHp) {
-        e.hp = Math.min(e.maxHp, e.hp + e.maxHp * e.regenRate);
+        // Cap regen at 2 HP/frame max regardless of maxHp
+        let regenAmount = Math.min(2, e.maxHp * e.regenRate);
+        e.hp = Math.min(e.maxHp, e.hp + regenAmount);
     }
 
     if (dist <= speed) {

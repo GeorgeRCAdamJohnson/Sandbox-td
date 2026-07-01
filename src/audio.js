@@ -135,16 +135,17 @@ function runArpSequencer() {
     function step() {
         if (!state.musicPlaying) { state.arpRunning = false; return; }
         let t = state.audioCtx.currentTime;
-        let { arpOsc, arpGain, arpFilter } = state.musicNodes;
+        let { arpOsc, arpGain } = state.musicNodes;
 
-        if (arpGain.gain.value > 0.005) {
+        // Use tracked intensity instead of reading gain.value
+        if ((state.musicIntensity || 0) > 0.3) {
             let pattern = patterns[patternIdx % patterns.length];
             let note = pattern[noteIdx % pattern.length];
             arpOsc.frequency.setValueAtTime(note, t);
 
-            let vol = arpGain.gain.value;
-            arpGain.gain.setValueAtTime(vol * 1.2, t);
-            arpGain.gain.setTargetAtTime(vol, t + stepTime * 0.3, 0.05);
+            let targetVol = Math.max(0, (state.musicIntensity - 0.3) * 0.06);
+            arpGain.gain.setValueAtTime(targetVol * 1.3, t);
+            arpGain.gain.setTargetAtTime(targetVol, t + stepTime * 0.3, 0.05);
         }
 
         noteIdx++;
@@ -169,14 +170,16 @@ function runTickSequencer() {
     function tick() {
         if (!state.musicPlaying) { state.tickRunning = false; return; }
         let t = state.audioCtx.currentTime;
-        let { tickGain, tickOsc } = state.musicNodes;
+        let { tickGain } = state.musicNodes;
 
-        if (tickGain.gain.value > 0.002) {
+        // Use tracked intensity
+        if ((state.musicIntensity || 0) > 0.4) {
+            let targetVol = Math.max(0, (state.musicIntensity - 0.4) * 0.025);
             let accent = (subBeat % 4 === 0) ? 1.5 : (subBeat % 4 === 2 ? 1.0 : 0.4);
-            let vol = tickGain.gain.value * accent;
+            let vol = targetVol * accent;
             tickGain.gain.setValueAtTime(vol, t);
             tickGain.gain.setTargetAtTime(0.001, t + 0.02, 0.01);
-            tickGain.gain.setTargetAtTime(tickGain.gain.value, t + beatTime * 0.4, 0.05);
+            tickGain.gain.setTargetAtTime(targetVol * 0.3, t + beatTime * 0.4, 0.05);
         }
 
         subBeat++;
@@ -188,6 +191,7 @@ function runTickSequencer() {
 // Intensity 0.0 to 1.0
 export function setMusicIntensity(intensity) {
     if (!state.musicNodes.master) return;
+    state.musicIntensity = intensity; // Track for sequencers
     let t = state.audioCtx.currentTime;
     let ramp = 2.5;
 

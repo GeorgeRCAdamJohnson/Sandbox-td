@@ -63,6 +63,7 @@ export const state = {
     audioCtx: null,
     musicPlaying: false,
     musicNodes: {},
+    musicIntensity: 0,
 
     // Sequencer flags
     arpRunning: false,
