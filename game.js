@@ -661,8 +661,204 @@ function getBossTrait(level) {
 
 // === AUDIO ===
 let audioCtx = null;
+let musicPlaying = false;
+let musicNodes = {};
+
 function initAudio() {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    startMusic();
+}
+
+// === PROCEDURAL SYNTH MUSIC ===
+function startMusic() {
+    if (!audioCtx || musicPlaying) return;
+    musicPlaying = true;
+
+    // Master gain
+    let master = audioCtx.createGain();
+    master.gain.value = 0.25;
+    master.connect(audioCtx.destination);
+
+    // Low-pass filter for warmth
+    let filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 800;
+    filter.Q.value = 1;
+    filter.connect(master);
+
+    // === PAD (deep ambient chord) ===
+    let padGain = audioCtx.createGain();
+    padGain.gain.value = 0.15;
+    padGain.connect(filter);
+
+    let padNotes = [55, 82.41, 110]; // A1, E2, A2
+    let padOscs = padNotes.map(freq => {
+        let osc = audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        osc.connect(padGain);
+        osc.start();
+        return osc;
+    });
+
+    // Add a second pad layer (triangle for texture)
+    let padGain2 = audioCtx.createGain();
+    padGain2.gain.value = 0.06;
+    padGain2.connect(filter);
+
+    let padOscs2 = [110, 164.81, 220].map(freq => { // A2, E3, A3
+        let osc = audioCtx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        osc.connect(padGain2);
+        osc.start();
+        return osc;
+    });
+
+    // === BASS PULSE ===
+    let bassGain = audioCtx.createGain();
+    bassGain.gain.value = 0;
+    bassGain.connect(master);
+
+    let bassOsc = audioCtx.createOscillator();
+    bassOsc.type = 'sine';
+    bassOsc.frequency.value = 55; // A1
+    bassOsc.connect(bassGain);
+    bassOsc.start();
+
+    // === ARPEGGIO ===
+    let arpGain = audioCtx.createGain();
+    arpGain.gain.value = 0;
+    arpGain.connect(filter);
+
+    let arpOsc = audioCtx.createOscillator();
+    arpOsc.type = 'sawtooth';
+    arpOsc.frequency.value = 220;
+    arpOsc.connect(arpGain);
+    arpOsc.start();
+
+    // === HI SHIMMER (high frequency texture) ===
+    let shimmerGain = audioCtx.createGain();
+    shimmerGain.gain.value = 0;
+    shimmerGain.connect(master);
+
+    let shimmerFilter = audioCtx.createBiquadFilter();
+    shimmerFilter.type = 'bandpass';
+    shimmerFilter.frequency.value = 3000;
+    shimmerFilter.Q.value = 5;
+    shimmerFilter.connect(shimmerGain);
+
+    let shimmerOsc = audioCtx.createOscillator();
+    shimmerOsc.type = 'sawtooth';
+    shimmerOsc.frequency.value = 880;
+    shimmerOsc.connect(shimmerFilter);
+    shimmerOsc.start();
+
+    // Store nodes for intensity control
+    musicNodes = {
+        master, filter, padGain, padGain2, bassGain, bassOsc,
+        arpGain, arpOsc, shimmerGain, shimmerOsc,
+        padOscs, padOscs2
+    };
+
+    // Start arpeggio sequencer
+    scheduleArpeggio();
+    scheduleBass();
+}
+
+function scheduleArpeggio() {
+    if (!musicPlaying || !audioCtx) return;
+
+    let notes = [220, 330, 440, 330, 261.63, 329.63, 392, 329.63]; // Am pentatonic
+    let noteIdx = 0;
+    let bpm = 120;
+    let stepTime = 60 / bpm / 2; // 8th notes
+
+    function step() {
+        if (!musicPlaying) return;
+        let t = audioCtx.currentTime;
+        let { arpOsc, arpGain } = musicNodes;
+
+        if (arpGain.gain.value > 0.01) {
+            arpOsc.frequency.setValueAtTime(notes[noteIdx], t);
+            arpGain.gain.setValueAtTime(arpGain.gain.value, t);
+            arpGain.gain.setTargetAtTime(arpGain.gain.value * 0.3, t + stepTime * 0.6, 0.02);
+            arpGain.gain.setTargetAtTime(arpGain.gain.value, t + stepTime * 0.9, 0.02);
+        }
+
+        noteIdx = (noteIdx + 1) % notes.length;
+        setTimeout(step, stepTime * 1000);
+    }
+    step();
+}
+
+function scheduleBass() {
+    if (!musicPlaying || !audioCtx) return;
+
+    let bpm = 120;
+    let beatTime = 60 / bpm;
+
+    function pulse() {
+        if (!musicPlaying) return;
+        let t = audioCtx.currentTime;
+        let { bassGain, bassOsc } = musicNodes;
+
+        if (bassGain.gain.value > 0.01) {
+            bassOsc.frequency.setValueAtTime(55, t);
+            bassGain.gain.setValueAtTime(bassGain.gain.value, t);
+            bassGain.gain.setTargetAtTime(bassGain.gain.value * 0.2, t + beatTime * 0.5, 0.05);
+            bassGain.gain.setTargetAtTime(bassGain.gain.value, t + beatTime * 0.9, 0.05);
+        }
+
+        setTimeout(pulse, beatTime * 1000);
+    }
+    pulse();
+}
+
+// Intensity 0.0 to 1.0 - drives music layers
+function setMusicIntensity(intensity) {
+    if (!musicNodes.master) return;
+    let t = audioCtx.currentTime;
+    let ramp = 2.0; // 2 second transition
+
+    // Pad always plays (ambient base)
+    musicNodes.padGain.gain.setTargetAtTime(0.12 + intensity * 0.06, t, ramp);
+    musicNodes.padGain2.gain.setTargetAtTime(0.04 + intensity * 0.05, t, ramp);
+
+    // Bass pulse fades in at 20% intensity
+    let bassVol = Math.max(0, (intensity - 0.2) * 0.15);
+    musicNodes.bassGain.gain.setTargetAtTime(bassVol, t, ramp);
+
+    // Arpeggio fades in at 40% intensity
+    let arpVol = Math.max(0, (intensity - 0.4) * 0.08);
+    musicNodes.arpGain.gain.setTargetAtTime(arpVol, t, ramp);
+
+    // Shimmer fades in at 60% intensity
+    let shimVol = Math.max(0, (intensity - 0.6) * 0.04);
+    musicNodes.shimmerGain.gain.setTargetAtTime(shimVol, t, ramp);
+
+    // Filter opens with intensity
+    musicNodes.filter.frequency.setTargetAtTime(600 + intensity * 2000, t, ramp);
+}
+
+function updateMusicForWave() {
+    // Intensity based on wave progress within level and level number
+    let waveProgress = currentWave / wavesPerLevel; // 0 to 1 within level
+    let levelFactor = Math.min(currentLevel / 20, 1); // 0 to 1 across game
+    let intensity = waveProgress * 0.6 + levelFactor * 0.4;
+    // Spike during boss waves
+    if (currentWave === wavesPerLevel) intensity = Math.min(1, intensity + 0.2);
+    setMusicIntensity(Math.min(1, intensity));
+}
+
+let musicMuted = false;
+function toggleMusic() {
+    musicMuted = !musicMuted;
+    if (musicNodes.master) {
+        musicNodes.master.gain.setTargetAtTime(musicMuted ? 0 : 0.25, audioCtx.currentTime, 0.3);
+    }
+    document.getElementById('musicBtn').textContent = musicMuted ? '♫ OFF' : '♫ ON';
+    document.getElementById('musicBtn').classList.toggle('active', !musicMuted);
 }
 
 function playSound(type) {
@@ -1537,6 +1733,7 @@ function update() {
 // === LEVEL SYSTEM ===
 function levelComplete() {
     playSound('levelup');
+    setMusicIntensity(0.1); // Calm down between levels
     upgradePoints += 2 + Math.floor(currentLevel / 5);
 
     // Level completion bonus: tight economy forces decisions
@@ -1636,10 +1833,9 @@ function sendNextWave() {
     document.getElementById('waveBtn').disabled = true;
     document.getElementById('waveBtn').textContent = 'Wave in progress...';
     playSound('wave');
+    updateMusicForWave();
     updateHUD();
 }
-
-// === UPGRADE SCREEN ===
 function showUpgradeScreen() {
     let screen = document.getElementById('upgradeScreen');
     screen.style.display = 'flex';
