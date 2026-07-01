@@ -682,13 +682,13 @@ function startMusic() {
     // Low-pass filter for warmth
     let filter = audioCtx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 800;
-    filter.Q.value = 1;
+    filter.frequency.value = 400;
+    filter.Q.value = 0.5;
     filter.connect(master);
 
-    // === PAD (deep ambient chord) ===
+    // === PAD (deep ambient drone) ===
     let padGain = audioCtx.createGain();
-    padGain.gain.value = 0.15;
+    padGain.gain.value = 0;
     padGain.connect(filter);
 
     let padNotes = [55, 82.41, 110]; // A1, E2, A2
@@ -701,168 +701,82 @@ function startMusic() {
         return osc;
     });
 
-    // Add a second pad layer (triangle for texture)
-    let padGain2 = audioCtx.createGain();
-    padGain2.gain.value = 0.06;
-    padGain2.connect(filter);
+    // Sub bass layer
+    let subGain = audioCtx.createGain();
+    subGain.gain.value = 0;
+    subGain.connect(master);
 
-    let padOscs2 = [110, 164.81, 220].map(freq => { // A2, E3, A3
-        let osc = audioCtx.createOscillator();
-        osc.type = 'triangle';
-        osc.frequency.value = freq;
-        osc.connect(padGain2);
-        osc.start();
-        return osc;
-    });
+    let subOsc = audioCtx.createOscillator();
+    subOsc.type = 'sine';
+    subOsc.frequency.value = 36.71; // D1 - deep sub
+    subOsc.connect(subGain);
+    subOsc.start();
 
-    // === BASS PULSE ===
-    let bassGain = audioCtx.createGain();
-    bassGain.gain.value = 0;
-    bassGain.connect(master);
+    // Triangle texture (very subtle)
+    let texGain = audioCtx.createGain();
+    texGain.gain.value = 0;
+    texGain.connect(filter);
 
-    let bassOsc = audioCtx.createOscillator();
-    bassOsc.type = 'sine';
-    bassOsc.frequency.value = 55; // A1
-    bassOsc.connect(bassGain);
-    bassOsc.start();
+    let texOsc = audioCtx.createOscillator();
+    texOsc.type = 'triangle';
+    texOsc.frequency.value = 73.42; // D2
+    texOsc.connect(texGain);
+    texOsc.start();
 
-    // === ARPEGGIO ===
-    let arpGain = audioCtx.createGain();
-    arpGain.gain.value = 0;
-    arpGain.connect(filter);
+    // Store nodes
+    musicNodes = { master, filter, padGain, padOscs, subGain, subOsc, texGain, texOsc };
 
-    let arpOsc = audioCtx.createOscillator();
-    arpOsc.type = 'sawtooth';
-    arpOsc.frequency.value = 220;
-    arpOsc.connect(arpGain);
-    arpOsc.start();
-
-    // === HI SHIMMER (high frequency texture) ===
-    let shimmerGain = audioCtx.createGain();
-    shimmerGain.gain.value = 0;
-    shimmerGain.connect(master);
-
-    let shimmerFilter = audioCtx.createBiquadFilter();
-    shimmerFilter.type = 'bandpass';
-    shimmerFilter.frequency.value = 3000;
-    shimmerFilter.Q.value = 5;
-    shimmerFilter.connect(shimmerGain);
-
-    let shimmerOsc = audioCtx.createOscillator();
-    shimmerOsc.type = 'sawtooth';
-    shimmerOsc.frequency.value = 880;
-    shimmerOsc.connect(shimmerFilter);
-    shimmerOsc.start();
-
-    // Store nodes for intensity control
-    musicNodes = {
-        master, filter, padGain, padGain2, bassGain, bassOsc,
-        arpGain, arpOsc, shimmerGain, shimmerOsc,
-        padOscs, padOscs2
-    };
-
-    // Start arpeggio sequencer
-    scheduleArpeggio();
-    scheduleBass();
+    // Start at zero, will fade in when first wave starts
+    setMusicIntensity(0);
 }
 
-function scheduleArpeggio() {
-    if (!musicPlaying || !audioCtx) return;
-
-    let notes = [220, 330, 440, 330, 261.63, 329.63, 392, 329.63]; // Am pentatonic
-    let noteIdx = 0;
-    let bpm = 120;
-    let stepTime = 60 / bpm / 2; // 8th notes
-
-    function step() {
-        if (!musicPlaying) return;
-        let t = audioCtx.currentTime;
-        let { arpOsc, arpGain } = musicNodes;
-
-        if (arpGain.gain.value > 0.01) {
-            arpOsc.frequency.setValueAtTime(notes[noteIdx], t);
-            arpGain.gain.setValueAtTime(arpGain.gain.value, t);
-            arpGain.gain.setTargetAtTime(arpGain.gain.value * 0.3, t + stepTime * 0.6, 0.02);
-            arpGain.gain.setTargetAtTime(arpGain.gain.value, t + stepTime * 0.9, 0.02);
-        }
-
-        noteIdx = (noteIdx + 1) % notes.length;
-        setTimeout(step, stepTime * 1000);
-    }
-    step();
-}
-
-function scheduleBass() {
-    if (!musicPlaying || !audioCtx) return;
-
-    let bpm = 120;
-    let beatTime = 60 / bpm;
-
-    function pulse() {
-        if (!musicPlaying) return;
-        let t = audioCtx.currentTime;
-        let { bassGain, bassOsc } = musicNodes;
-
-        if (bassGain.gain.value > 0.01) {
-            bassOsc.frequency.setValueAtTime(55, t);
-            bassGain.gain.setValueAtTime(bassGain.gain.value, t);
-            bassGain.gain.setTargetAtTime(bassGain.gain.value * 0.2, t + beatTime * 0.5, 0.05);
-            bassGain.gain.setTargetAtTime(bassGain.gain.value, t + beatTime * 0.9, 0.05);
-        }
-
-        setTimeout(pulse, beatTime * 1000);
-    }
-    pulse();
-}
-
-// Intensity 0.0 to 1.0 - drives music layers
+// Intensity 0.0 to 1.0
 function setMusicIntensity(intensity) {
     if (!musicNodes.master) return;
     let t = audioCtx.currentTime;
-    let ramp = 2.0; // 2 second transition
+    let ramp = 3.0; // slow 3 second transitions
 
-    // Pad always plays (ambient base)
-    musicNodes.padGain.gain.setTargetAtTime(0.12 + intensity * 0.06, t, ramp);
-    musicNodes.padGain2.gain.setTargetAtTime(0.04 + intensity * 0.05, t, ramp);
+    // Pad drone grows slightly
+    musicNodes.padGain.gain.setTargetAtTime(0.08 + intensity * 0.07, t, ramp);
 
-    // Bass pulse fades in at 20% intensity
-    let bassVol = Math.max(0, (intensity - 0.2) * 0.15);
-    musicNodes.bassGain.gain.setTargetAtTime(bassVol, t, ramp);
+    // Sub bass fades in gently
+    musicNodes.subGain.gain.setTargetAtTime(0.05 + intensity * 0.06, t, ramp);
 
-    // Arpeggio fades in at 40% intensity
-    let arpVol = Math.max(0, (intensity - 0.4) * 0.08);
-    musicNodes.arpGain.gain.setTargetAtTime(arpVol, t, ramp);
+    // Triangle texture adds body at higher intensity
+    musicNodes.texGain.gain.setTargetAtTime(intensity * 0.04, t, ramp);
 
-    // Shimmer fades in at 60% intensity
-    let shimVol = Math.max(0, (intensity - 0.6) * 0.04);
-    musicNodes.shimmerGain.gain.setTargetAtTime(shimVol, t, ramp);
-
-    // Filter opens with intensity
-    musicNodes.filter.frequency.setTargetAtTime(600 + intensity * 2000, t, ramp);
+    // Filter stays low and warm, opens only slightly
+    musicNodes.filter.frequency.setTargetAtTime(300 + intensity * 400, t, ramp);
 }
 
 function updateMusicForWave() {
-    // Intensity based on wave progress within level and level number
-    let waveProgress = currentWave / wavesPerLevel; // 0 to 1 within level
-    let levelFactor = Math.min(currentLevel / 20, 1); // 0 to 1 across game
-    let intensity = waveProgress * 0.6 + levelFactor * 0.4;
-    // Spike during boss waves
-    if (currentWave === wavesPerLevel) intensity = Math.min(1, intensity + 0.2);
+    let waveProgress = currentWave / wavesPerLevel;
+    let levelFactor = Math.min(currentLevel / 25, 1);
+    let intensity = waveProgress * 0.5 + levelFactor * 0.5;
+    if (currentWave === wavesPerLevel) intensity = Math.min(1, intensity + 0.15);
     setMusicIntensity(Math.min(1, intensity));
 }
 
 let musicMuted = false;
+let sfxMuted = false;
+
 function toggleMusic() {
     musicMuted = !musicMuted;
     if (musicNodes.master) {
-        musicNodes.master.gain.setTargetAtTime(musicMuted ? 0 : 0.25, audioCtx.currentTime, 0.3);
+        musicNodes.master.gain.setTargetAtTime(musicMuted ? 0 : 0.25, audioCtx.currentTime, 0.5);
     }
     document.getElementById('musicBtn').textContent = musicMuted ? '♫ OFF' : '♫ ON';
     document.getElementById('musicBtn').classList.toggle('active', !musicMuted);
 }
 
+function toggleSfx() {
+    sfxMuted = !sfxMuted;
+    document.getElementById('sfxBtn').textContent = sfxMuted ? 'SFX OFF' : 'SFX ON';
+    document.getElementById('sfxBtn').classList.toggle('active', !sfxMuted);
+}
+
 function playSound(type) {
-    if (!audioCtx) return;
+    if (!audioCtx || sfxMuted) return;
     try {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
