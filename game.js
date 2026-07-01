@@ -679,20 +679,19 @@ function startMusic() {
     master.gain.value = 0.25;
     master.connect(audioCtx.destination);
 
-    // Low-pass filter for warmth
+    // Warm filter
     let filter = audioCtx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 400;
-    filter.Q.value = 0.5;
+    filter.frequency.value = 600;
+    filter.Q.value = 1;
     filter.connect(master);
 
-    // === PAD (deep ambient drone) ===
+    // === LAYER 1: Ambient pad (always present, foundation) ===
     let padGain = audioCtx.createGain();
-    padGain.gain.value = 0;
+    padGain.gain.value = 0.1;
     padGain.connect(filter);
 
-    let padNotes = [55, 82.41, 110]; // A1, E2, A2
-    let padOscs = padNotes.map(freq => {
+    let padOscs = [55, 82.41, 110].map(freq => {
         let osc = audioCtx.createOscillator();
         osc.type = 'sine';
         osc.frequency.value = freq;
@@ -701,59 +700,192 @@ function startMusic() {
         return osc;
     });
 
-    // Sub bass layer
-    let subGain = audioCtx.createGain();
-    subGain.gain.value = 0;
-    subGain.connect(master);
+    // === LAYER 2: Slow pulsing bass (subtle rhythm) ===
+    let bassGain = audioCtx.createGain();
+    bassGain.gain.value = 0;
+    bassGain.connect(master);
 
-    let subOsc = audioCtx.createOscillator();
-    subOsc.type = 'sine';
-    subOsc.frequency.value = 36.71; // D1 - deep sub
-    subOsc.connect(subGain);
-    subOsc.start();
+    let bassOsc = audioCtx.createOscillator();
+    bassOsc.type = 'triangle';
+    bassOsc.frequency.value = 55;
+    bassOsc.connect(bassGain);
+    bassOsc.start();
 
-    // Triangle texture (very subtle)
-    let texGain = audioCtx.createGain();
-    texGain.gain.value = 0;
-    texGain.connect(filter);
+    // LFO for bass pulse
+    let bassLFO = audioCtx.createOscillator();
+    let bassLFOGain = audioCtx.createGain();
+    bassLFO.type = 'sine';
+    bassLFO.frequency.value = 0.5; // Very slow pulse
+    bassLFOGain.gain.value = 0;
+    bassLFO.connect(bassLFOGain);
+    bassLFOGain.connect(bassGain.gain);
+    bassLFO.start();
 
-    let texOsc = audioCtx.createOscillator();
-    texOsc.type = 'triangle';
-    texOsc.frequency.value = 73.42; // D2
-    texOsc.connect(texGain);
-    texOsc.start();
+    // === LAYER 3: Arpeggio (melodic interest) ===
+    let arpGain = audioCtx.createGain();
+    arpGain.gain.value = 0;
+    let arpFilter = audioCtx.createBiquadFilter();
+    arpFilter.type = 'lowpass';
+    arpFilter.frequency.value = 1200;
+    arpFilter.Q.value = 2;
+    arpGain.connect(arpFilter);
+    arpFilter.connect(master);
 
-    // Store nodes
-    musicNodes = { master, filter, padGain, padOscs, subGain, subOsc, texGain, texOsc };
+    let arpOsc = audioCtx.createOscillator();
+    arpOsc.type = 'sawtooth';
+    arpOsc.frequency.value = 220;
+    arpOsc.connect(arpGain);
+    arpOsc.start();
 
-    // Start at zero, will fade in when first wave starts
-    setMusicIntensity(0);
+    // === LAYER 4: High pad (ethereal shimmer) ===
+    let highGain = audioCtx.createGain();
+    highGain.gain.value = 0;
+    highGain.connect(filter);
+
+    let highOscs = [440, 554.37, 659.25].map(freq => { // A4, C#5, E5 (A major high)
+        let osc = audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        osc.connect(highGain);
+        osc.start();
+        return osc;
+    });
+
+    // === LAYER 5: Rhythmic click/tick (drive) ===
+    let tickGain = audioCtx.createGain();
+    tickGain.gain.value = 0;
+    tickGain.connect(master);
+
+    let tickOsc = audioCtx.createOscillator();
+    tickOsc.type = 'square';
+    tickOsc.frequency.value = 880;
+    tickOsc.connect(tickGain);
+    tickOsc.start();
+
+    musicNodes = {
+        master, filter, padGain, padOscs,
+        bassGain, bassOsc, bassLFO, bassLFOGain,
+        arpGain, arpOsc, arpFilter,
+        highGain, highOscs,
+        tickGain, tickOsc
+    };
+
+    // Start sequencers
+    runArpSequencer();
+    runTickSequencer();
+    setMusicIntensity(0.05);
+}
+
+// Arpeggio sequencer - plays melodic notes
+let arpRunning = false;
+function runArpSequencer() {
+    if (arpRunning) return;
+    arpRunning = true;
+
+    // A minor pentatonic in different octaves
+    let patterns = [
+        [220, 261.63, 329.63, 392, 440, 392, 329.63, 261.63],  // Calm
+        [220, 329.63, 440, 523.25, 440, 329.63, 261.63, 220],   // Rising
+        [440, 392, 329.63, 293.66, 261.63, 293.66, 329.63, 392], // Descending
+    ];
+    let patternIdx = 0;
+    let noteIdx = 0;
+    let bpm = 130;
+    let stepTime = 60 / bpm / 2; // 16th notes
+
+    function step() {
+        if (!musicPlaying) { arpRunning = false; return; }
+        let t = audioCtx.currentTime;
+        let { arpOsc, arpGain, arpFilter } = musicNodes;
+
+        if (arpGain.gain.value > 0.005) {
+            let pattern = patterns[patternIdx % patterns.length];
+            let note = pattern[noteIdx % pattern.length];
+            arpOsc.frequency.setValueAtTime(note, t);
+
+            // Envelope: quick attack, medium release
+            let vol = arpGain.gain.value;
+            arpGain.gain.setValueAtTime(vol * 1.2, t);
+            arpGain.gain.setTargetAtTime(vol, t + stepTime * 0.3, 0.05);
+        }
+
+        noteIdx++;
+        if (noteIdx >= 8) {
+            noteIdx = 0;
+            if (Math.random() < 0.3) patternIdx++;
+        }
+        setTimeout(step, stepTime * 1000);
+    }
+    step();
+}
+
+// Tick sequencer - subtle rhythmic pulse
+let tickRunning = false;
+function runTickSequencer() {
+    if (tickRunning) return;
+    tickRunning = true;
+
+    let bpm = 130;
+    let beatTime = 60 / bpm;
+    let subBeat = 0;
+
+    function tick() {
+        if (!musicPlaying) { tickRunning = false; return; }
+        let t = audioCtx.currentTime;
+        let { tickGain, tickOsc } = musicNodes;
+
+        if (tickGain.gain.value > 0.002) {
+            // Accent on beat 1 and 3
+            let accent = (subBeat % 4 === 0) ? 1.5 : (subBeat % 4 === 2 ? 1.0 : 0.4);
+            let vol = tickGain.gain.value * accent;
+            tickGain.gain.setValueAtTime(vol, t);
+            tickGain.gain.setTargetAtTime(0.001, t + 0.02, 0.01);
+            tickGain.gain.setTargetAtTime(tickGain.gain.value, t + beatTime * 0.4, 0.05);
+        }
+
+        subBeat++;
+        setTimeout(tick, (beatTime / 2) * 1000);
+    }
+    tick();
 }
 
 // Intensity 0.0 to 1.0
 function setMusicIntensity(intensity) {
     if (!musicNodes.master) return;
     let t = audioCtx.currentTime;
-    let ramp = 3.0; // slow 3 second transitions
+    let ramp = 2.5;
 
-    // Pad drone grows slightly
-    musicNodes.padGain.gain.setTargetAtTime(0.08 + intensity * 0.07, t, ramp);
+    // Pad: always present, slight growth
+    musicNodes.padGain.gain.setTargetAtTime(0.08 + intensity * 0.05, t, ramp);
 
-    // Sub bass fades in gently
-    musicNodes.subGain.gain.setTargetAtTime(0.05 + intensity * 0.06, t, ramp);
+    // Bass pulse: fades in at 15%
+    let bassVol = Math.max(0, (intensity - 0.15) * 0.12);
+    musicNodes.bassGain.gain.setTargetAtTime(0.04 + bassVol, t, ramp);
+    musicNodes.bassLFOGain.gain.setTargetAtTime(bassVol * 0.5, t, ramp);
+    musicNodes.bassLFO.frequency.setTargetAtTime(0.4 + intensity * 0.8, t, ramp); // Pulse speeds up
 
-    // Triangle texture adds body at higher intensity
-    musicNodes.texGain.gain.setTargetAtTime(intensity * 0.04, t, ramp);
+    // Arpeggio: fades in at 30%
+    let arpVol = Math.max(0, (intensity - 0.3) * 0.06);
+    musicNodes.arpGain.gain.setTargetAtTime(arpVol, t, ramp);
+    musicNodes.arpFilter.frequency.setTargetAtTime(800 + intensity * 2000, t, ramp);
 
-    // Filter stays low and warm, opens only slightly
-    musicNodes.filter.frequency.setTargetAtTime(300 + intensity * 400, t, ramp);
+    // High pad: fades in at 50%
+    let highVol = Math.max(0, (intensity - 0.5) * 0.035);
+    musicNodes.highGain.gain.setTargetAtTime(highVol, t, ramp);
+
+    // Tick: fades in at 40%
+    let tickVol = Math.max(0, (intensity - 0.4) * 0.02);
+    musicNodes.tickGain.gain.setTargetAtTime(tickVol, t, ramp);
+
+    // Main filter opens
+    musicNodes.filter.frequency.setTargetAtTime(500 + intensity * 2500, t, ramp);
 }
 
 function updateMusicForWave() {
     let waveProgress = currentWave / wavesPerLevel;
-    let levelFactor = Math.min(currentLevel / 25, 1);
-    let intensity = waveProgress * 0.5 + levelFactor * 0.5;
-    if (currentWave === wavesPerLevel) intensity = Math.min(1, intensity + 0.15);
+    let levelFactor = Math.min(currentLevel / 20, 1);
+    let intensity = waveProgress * 0.55 + levelFactor * 0.45;
+    if (currentWave === wavesPerLevel) intensity = Math.min(1, intensity + 0.2);
     setMusicIntensity(Math.min(1, intensity));
 }
 
