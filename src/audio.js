@@ -16,10 +16,19 @@ export function startMusic() {
 
     let audioCtx = state.audioCtx;
 
-    // Master gain
+    // Compressor to prevent clipping
+    let compressor = audioCtx.createDynamicsCompressor();
+    compressor.threshold.value = -12;
+    compressor.knee.value = 10;
+    compressor.ratio.value = 4;
+    compressor.attack.value = 0.003;
+    compressor.release.value = 0.25;
+    compressor.connect(audioCtx.destination);
+
+    // Master gain (lower to prevent clipping)
     let master = audioCtx.createGain();
-    master.gain.value = 0.25;
-    master.connect(audioCtx.destination);
+    master.gain.value = 0.18;
+    master.connect(compressor);
 
     // Warm filter
     let filter = audioCtx.createBiquadFilter();
@@ -193,40 +202,47 @@ export function setMusicIntensity(intensity) {
     if (!state.musicNodes.master) return;
     state.musicIntensity = intensity; // Track for sequencers
     let t = state.audioCtx.currentTime;
-    let ramp = 2.5;
+    let ramp = 4.0; // Slower transitions to avoid jarring changes
 
-    state.musicNodes.padGain.gain.setTargetAtTime(0.08 + intensity * 0.05, t, ramp);
+    // Pad: always present, grows gently
+    state.musicNodes.padGain.gain.setTargetAtTime(0.06 + intensity * 0.04, t, ramp);
 
-    let bassVol = Math.max(0, (intensity - 0.15) * 0.12);
-    state.musicNodes.bassGain.gain.setTargetAtTime(0.04 + bassVol, t, ramp);
-    state.musicNodes.bassLFOGain.gain.setTargetAtTime(bassVol * 0.5, t, ramp);
-    state.musicNodes.bassLFO.frequency.setTargetAtTime(0.4 + intensity * 0.8, t, ramp);
+    // Bass pulse: fades in at 10% (very early, subtle)
+    let bassVol = Math.max(0, (intensity - 0.1) * 0.08);
+    state.musicNodes.bassGain.gain.setTargetAtTime(0.03 + bassVol, t, ramp);
+    state.musicNodes.bassLFOGain.gain.setTargetAtTime(bassVol * 0.4, t, ramp);
+    state.musicNodes.bassLFO.frequency.setTargetAtTime(0.3 + intensity * 0.6, t, ramp);
 
-    let arpVol = Math.max(0, (intensity - 0.3) * 0.06);
+    // Arpeggio: fades in at 35% (mid waves)
+    let arpVol = Math.max(0, (intensity - 0.35) * 0.04);
     state.musicNodes.arpGain.gain.setTargetAtTime(arpVol, t, ramp);
-    state.musicNodes.arpFilter.frequency.setTargetAtTime(800 + intensity * 2000, t, ramp);
+    state.musicNodes.arpFilter.frequency.setTargetAtTime(800 + intensity * 1500, t, ramp);
 
-    let highVol = Math.max(0, (intensity - 0.5) * 0.035);
+    // High pad: fades in at 55%
+    let highVol = Math.max(0, (intensity - 0.55) * 0.025);
     state.musicNodes.highGain.gain.setTargetAtTime(highVol, t, ramp);
 
-    let tickVol = Math.max(0, (intensity - 0.4) * 0.02);
+    // Tick: fades in at 60% (only final waves / high levels)
+    let tickVol = Math.max(0, (intensity - 0.6) * 0.015);
     state.musicNodes.tickGain.gain.setTargetAtTime(tickVol, t, ramp);
 
-    state.musicNodes.filter.frequency.setTargetAtTime(500 + intensity * 2500, t, ramp);
+    // Main filter opens gradually
+    state.musicNodes.filter.frequency.setTargetAtTime(500 + intensity * 2000, t, ramp);
 }
 
 export function updateMusicForWave() {
     let waveProgress = state.currentWave / state.wavesPerLevel;
-    let levelFactor = Math.min(state.currentLevel / 20, 1);
-    let intensity = waveProgress * 0.55 + levelFactor * 0.45;
-    if (state.currentWave === state.wavesPerLevel) intensity = Math.min(1, intensity + 0.2);
+    let levelFactor = Math.min(state.currentLevel / 25, 1);
+    // Smoother curve: each wave adds ~0.12 intensity
+    let intensity = waveProgress * 0.5 + levelFactor * 0.4;
+    if (state.currentWave === state.wavesPerLevel) intensity = Math.min(1, intensity + 0.15);
     setMusicIntensity(Math.min(1, intensity));
 }
 
 export function toggleMusic() {
     state.musicMuted = !state.musicMuted;
     if (state.musicNodes.master) {
-        state.musicNodes.master.gain.setTargetAtTime(state.musicMuted ? 0 : 0.25, state.audioCtx.currentTime, 0.5);
+        state.musicNodes.master.gain.setTargetAtTime(state.musicMuted ? 0 : 0.18, state.audioCtx.currentTime, 0.5);
     }
     document.getElementById('musicBtn').textContent = state.musicMuted ? '♫ OFF' : '♫ ON';
     document.getElementById('musicBtn').classList.toggle('active', !state.musicMuted);
@@ -253,7 +269,7 @@ export function playSound(type) {
                 osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(900, t);
                 osc.frequency.exponentialRampToValueAtTime(300, t + 0.08);
-                gain.gain.setValueAtTime(0.04, t);
+                gain.gain.setValueAtTime(0.025, t);
                 gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
                 osc.start(t); osc.stop(t + 0.08);
                 break;
@@ -261,7 +277,7 @@ export function playSound(type) {
                 osc.type = 'square';
                 osc.frequency.setValueAtTime(120, t);
                 osc.frequency.exponentialRampToValueAtTime(40, t + 0.15);
-                gain.gain.setValueAtTime(0.06, t);
+                gain.gain.setValueAtTime(0.035, t);
                 gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
                 osc.start(t); osc.stop(t + 0.15);
                 break;
@@ -269,7 +285,7 @@ export function playSound(type) {
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(1400, t);
                 osc.frequency.exponentialRampToValueAtTime(700, t + 0.12);
-                gain.gain.setValueAtTime(0.05, t);
+                gain.gain.setValueAtTime(0.03, t);
                 gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
                 osc.start(t); osc.stop(t + 0.12);
                 break;
@@ -277,7 +293,7 @@ export function playSound(type) {
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(500, t);
                 osc.frequency.exponentialRampToValueAtTime(1000, t + 0.08);
-                gain.gain.setValueAtTime(0.03, t);
+                gain.gain.setValueAtTime(0.02, t);
                 gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
                 osc.start(t); osc.stop(t + 0.08);
                 break;
@@ -288,7 +304,7 @@ export function playSound(type) {
                 const src = audioCtx.createBufferSource();
                 src.buffer = buf;
                 const g = audioCtx.createGain();
-                g.gain.setValueAtTime(0.08, t);
+                g.gain.setValueAtTime(0.05, t);
                 g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
                 src.connect(g); g.connect(audioCtx.destination);
                 src.start(t); src.stop(t + 0.15);
@@ -299,7 +315,7 @@ export function playSound(type) {
                 osc.frequency.setValueAtTime(400, t);
                 osc.frequency.linearRampToValueAtTime(800, t + 0.2);
                 osc.frequency.linearRampToValueAtTime(1200, t + 0.4);
-                gain.gain.setValueAtTime(0.06, t);
+                gain.gain.setValueAtTime(0.04, t);
                 gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
                 osc.start(t); osc.stop(t + 0.4);
                 break;
