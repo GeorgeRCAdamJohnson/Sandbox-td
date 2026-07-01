@@ -1249,14 +1249,9 @@ function updateEnemy(e) {
         if (e.slowTimer <= 0) e.slowAmt = 1;
     }
 
-    // Regeneration (capped - can only regen up to 50% of damage taken)
-    if (e.regenRate > 0 && e.hp < e.maxHp) {
-        let maxRegen = e.maxHp * 0.5; // Can never regen above 50% of max
-        let regenCap = e.maxHp - maxRegen; // Minimum HP it can regen back to
-        let targetHP = Math.min(regenCap, e.maxHp);
-        if (e.hp < targetHP) {
-            e.hp = Math.min(targetHP, e.hp + e.maxHp * e.regenRate);
-        }
+    // Regeneration - only regens while above 40% HP (once hurt badly, regen stops)
+    if (e.regenRate > 0 && e.hp > e.maxHp * 0.4 && e.hp < e.maxHp) {
+        e.hp = Math.min(e.maxHp, e.hp + e.maxHp * e.regenRate);
     }
 
     if (dist <= speed) {
