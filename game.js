@@ -40,6 +40,8 @@ let pathCells = []; // grid cells that are path
 let hoveredCell = null;
 let animFrame = 0;
 let gridPulse = 0;
+let musicMuted = false;
+let sfxMuted = false;
 let tronLineOffset = 0;
 
 // Path extension system
@@ -888,9 +890,6 @@ function updateMusicForWave() {
     if (currentWave === wavesPerLevel) intensity = Math.min(1, intensity + 0.2);
     setMusicIntensity(Math.min(1, intensity));
 }
-
-let musicMuted = false;
-let sfxMuted = false;
 
 function toggleMusic() {
     musicMuted = !musicMuted;
