@@ -188,7 +188,6 @@ export function spawnEnemy() {
         regenRate: traitDef.regenRate || 0,
         phaseChance: traitDef.phaseChance || 0,
         traitName: traitDef.name,
-        useBranch: state.splitPath ? (Math.random() < 0.5 ? 'A' : 'B') : 'A',
     });
 
     state.groupSpawned++;
@@ -200,42 +199,6 @@ export function spawnEnemy() {
 
 export function updateEnemy(e) {
     if (e.pathIdx >= state.path.length - 1) { e.reachedEnd = true; return; }
-
-    // Split path logic (Feature 4)
-    let targetPath = state.path;
-    if (state.splitPath && e.useBranch === 'B') {
-        // If enemy is on branch B and within the fork/rejoin range
-        let sp = state.splitPath;
-        if (e.pathIdx >= sp.forkIdx && e.pathIdx <= sp.rejoinIdx) {
-            let branchIdx = e.pathIdx - sp.forkIdx;
-            if (branchIdx >= 0 && branchIdx < sp.branchB.length) {
-                targetPath = null; // use branch target directly
-                let target = sp.branchB[branchIdx];
-                let dx = target.x - e.x;
-                let dy = target.y - e.y;
-                let dist = Math.abs(dx) + Math.abs(dy);
-                let speed = e.speed * e.slowAmt;
-                if (e.slowTimer > 0) {
-                    e.slowTimer--;
-                    if (e.slowTimer <= 0) e.slowAmt = 1;
-                }
-                if (e.regenRate > 0 && e.hp > e.maxHp * 0.4 && e.hp < e.maxHp) {
-                    let regenAmount = Math.min(2, e.maxHp * e.regenRate);
-                    e.hp = Math.min(e.maxHp, e.hp + regenAmount);
-                }
-                if (dist <= speed) {
-                    e.x = target.x;
-                    e.y = target.y;
-                    e.pathIdx++;
-                } else {
-                    if (Math.abs(dx) > 0.1) e.x += Math.sign(dx) * speed;
-                    else e.y += Math.sign(dy) * speed;
-                }
-                e.angle += 0.04;
-                return;
-            }
-        }
-    }
 
     let target = state.path[e.pathIdx + 1];
     let dx = target.x - e.x;

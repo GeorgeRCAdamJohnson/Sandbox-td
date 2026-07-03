@@ -40,6 +40,7 @@ export const state = {
     pathExtensions: 0,
     extensionCellsPlaced: 0,
     extensionCellsRemaining: 0,
+    validExtensionSpots: [],
 
     // Upgrade system
     upgradePoints: 0,

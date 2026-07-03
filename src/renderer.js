@@ -407,29 +407,50 @@ export function drawHoverPreview() {
     let { col, row } = state.hoveredCell;
     if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) return;
 
-    // Path extension mode
+    // Path extension mode - highlight valid extension spots
     if (state.pathExtendMode) {
-        let isAdjacentToPath = false;
-        let adjDirs = [{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0}];
-        for (let d of adjDirs) {
-            let nx = col + d.dx, ny = row + d.dy;
-            if (nx >= 0 && nx < GRID_COLS && ny >= 0 && ny < GRID_ROWS && state.grid[ny][nx] === 1) {
-                isAdjacentToPath = true;
-                break;
+        // Draw all valid first-cells as orange highlights
+        if (state.validExtensionSpots) {
+            for (let spot of state.validExtensionSpots) {
+                for (let c of spot.cells) {
+                    ctx.fillStyle = 'rgba(255, 136, 68, 0.2)';
+                    ctx.fillRect(c.x * CELL_SIZE + 2, c.y * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+                    ctx.strokeStyle = 'rgba(255, 136, 68, 0.5)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(c.x * CELL_SIZE + 2, c.y * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+                }
             }
         }
-        let canPlace = state.grid[row][col] === 0 && isAdjacentToPath;
 
-        ctx.fillStyle = canPlace ? 'rgba(255, 136, 68, 0.3)' : 'rgba(255, 0, 50, 0.15)';
-        ctx.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-        ctx.strokeStyle = canPlace ? '#ff8844' : '#ff0033';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(col * CELL_SIZE + 1, row * CELL_SIZE + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+        // Highlight hovered cell if it's a valid pick
+        let isValid = false;
+        if (state.validExtensionSpots) {
+            for (let spot of state.validExtensionSpots) {
+                if ((spot.cells[0].x === col && spot.cells[0].y === row) ||
+                    (spot.cells[1].x === col && spot.cells[1].y === row)) {
+                    isValid = true;
+                    // Highlight both cells of this spot brightly
+                    for (let c of spot.cells) {
+                        ctx.fillStyle = 'rgba(255, 136, 68, 0.5)';
+                        ctx.fillRect(c.x * CELL_SIZE, c.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                        ctx.strokeStyle = '#ff8844';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(c.x * CELL_SIZE + 1, c.y * CELL_SIZE + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+                    }
+                    break;
+                }
+            }
+        }
+
+        if (!isValid && state.grid[row][col] === 0) {
+            ctx.fillStyle = 'rgba(255, 0, 50, 0.15)';
+            ctx.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        }
 
         ctx.fillStyle = '#ff8844';
         ctx.font = 'bold 10px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(state.extensionCellsRemaining + ' left', col * CELL_SIZE + CELL_SIZE / 2, row * CELL_SIZE - 5);
+        ctx.fillText('TAP ORANGE CELLS', CANVAS_W / 2, 20);
         return;
     }
 
