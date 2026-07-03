@@ -5,7 +5,6 @@
 import { TOTAL_LEVELS, TOWER_DEFS, SUPER_DEFS } from './constants.js';
 import { state } from './state.js';
 import { canExtendPath, getExtensionCost } from './map.js';
-import { startLevel } from './levels.js';
 import { getTowerSynergies } from './towers.js';
 
 export function selectTower(type) {
@@ -195,5 +194,6 @@ export function unlockSuper(type) {
 
 export function continueToNextLevel() {
     document.getElementById('upgradeScreen').style.display = 'none';
-    startLevel(state.currentLevel + 1);
+    // Use late-bound import to avoid circular dependency with levels.js
+    import('./levels.js').then(mod => mod.startLevel(state.currentLevel + 1));
 }
