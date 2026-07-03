@@ -58,6 +58,15 @@ export function setupInput() {
 
     canvas.addEventListener('touchend', (e) => {
         e.preventDefault();
+        // Double-tap to deselect (Feature 8)
+        let now = Date.now();
+        if (now - state.lastTapTime < 300) {
+            deselectAll();
+            state.lastTapTime = 0;
+            return;
+        }
+        state.lastTapTime = now;
+
         if (state.hoveredCell) {
             handleCanvasClick(
                 state.hoveredCell.col * CELL_SIZE + CELL_SIZE / 2,
@@ -125,7 +134,11 @@ export function placeTower(col, row) {
         beamTarget: null,
         beamTimer: 0,
         totalSpent: def.cost,
+        kills: 0, // Feature 7: kill counter
     });
+
+    // Mobile vibration on placement (Feature 8)
+    if (navigator.vibrate) navigator.vibrate(30);
 
     state.score += 5;
     updateHUD();

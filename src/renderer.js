@@ -4,7 +4,7 @@
 
 import { CELL_SIZE, GRID_COLS, GRID_ROWS, CANVAS_W, CANVAS_H, TOWER_DEFS, SUPER_DEFS, ENEMY_TRAITS } from './constants.js';
 import { state } from './state.js';
-import { getTowerStats } from './towers.js';
+import { getTowerStats, getTowerSynergies } from './towers.js';
 
 export function render() {
     let ctx = state.ctx;
@@ -18,6 +18,7 @@ export function render() {
     drawProjectiles();
     drawParticles();
     drawFloatingTexts();
+    drawDamageNumbers();
     drawHoverPreview();
 }
 
@@ -128,7 +129,7 @@ export function drawTowers() {
         let size = 14;
 
         if (tower === state.selectedTower) {
-            let actualRange = getTowerStats(tower.type, tower.isSuper).range * CELL_SIZE;
+            let actualRange = getTowerStats(tower.type, tower.isSuper, tower).range * CELL_SIZE;
             ctx.strokeStyle = def.color;
             ctx.globalAlpha = 0.8;
             ctx.lineWidth = 2.5;
@@ -216,6 +217,27 @@ export function drawTowers() {
             ctx.stroke();
             ctx.globalAlpha = 1;
             ctx.shadowBlur = 0;
+        }
+
+        // Kill tier indicator (Feature 7)
+        let kills = tower.kills || 0;
+        if (kills >= 25) {
+            let tierColor = kills >= 100 ? '#ffd700' : kills >= 50 ? '#c0c0c0' : '#cd7f32';
+            ctx.fillStyle = tierColor;
+            ctx.beginPath();
+            ctx.arc(x + size - 2, y - size + 2, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Synergy indicator (Feature 3)
+        let synergies = getTowerSynergies(tower);
+        if (synergies.length > 0) {
+            ctx.fillStyle = '#ffcc00';
+            ctx.font = 'bold 8px monospace';
+            ctx.textAlign = 'center';
+            ctx.globalAlpha = 0.8;
+            ctx.fillText('⚡', x, y + size + 10);
+            ctx.globalAlpha = 1;
         }
     }
 }
@@ -363,6 +385,19 @@ export function drawFloatingTexts() {
     }
     ctx.globalAlpha = 1;
     ctx.shadowBlur = 0;
+}
+
+// === DAMAGE NUMBERS (Feature 6) ===
+export function drawDamageNumbers() {
+    let ctx = state.ctx;
+    for (let dn of state.damageNumbers) {
+        ctx.globalAlpha = dn.life / dn.maxLife;
+        ctx.fillStyle = dn.color;
+        ctx.font = 'bold 8px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(dn.text, dn.x, dn.y);
+    }
+    ctx.globalAlpha = 1;
 }
 
 

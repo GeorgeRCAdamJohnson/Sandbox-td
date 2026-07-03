@@ -6,6 +6,7 @@ import { TOTAL_LEVELS, TOWER_DEFS, SUPER_DEFS } from './constants.js';
 import { state } from './state.js';
 import { canExtendPath, getExtensionCost } from './map.js';
 import { startLevel } from './levels.js';
+import { getTowerSynergies } from './towers.js';
 
 export function selectTower(type) {
     let def = type.startsWith('super_') ? SUPER_DEFS[type.replace('super_', '')] : TOWER_DEFS[type];
@@ -24,18 +25,32 @@ export function showTowerInfo(tower) {
     let content = document.getElementById('towerInfoContent');
     let sellValue = Math.floor(tower.totalSpent * 0.7);
 
+    // Kill counter tier (Feature 7)
+    let kills = tower.kills || 0;
+    let killTier = kills >= 100 ? 'gold' : kills >= 50 ? 'silver' : kills >= 25 ? 'bronze' : '';
+    let killTierColor = kills >= 100 ? '#ffd700' : kills >= 50 ? '#c0c0c0' : kills >= 25 ? '#cd7f32' : '';
+
+    // Synergies (Feature 3)
+    let synergies = getTowerSynergies(tower);
+
     let html = `
         <div class="stat-row"><span class="stat-label">Type:</span><span class="stat-value" style="color:${def.color}">${def.name}${tower.isSuper ? ' ★' : ''}</span></div>
         <div class="stat-row"><span class="stat-label">Damage:</span><span class="stat-value">${tower.damage.toFixed(1)}</span></div>
         <div class="stat-row"><span class="stat-label">Range:</span><span class="stat-value">${(tower.range).toFixed(1)} cells</span></div>
         <div class="stat-row"><span class="stat-label">Fire Rate:</span><span class="stat-value">${(60 / tower.fireRate).toFixed(1)}/s</span></div>
-        <div class="target-modes">`;
+        <div class="stat-row"><span class="stat-label">Kills:</span><span class="stat-value">${kills}${killTier ? ' <span style="color:' + killTierColor + '">●</span>' : ''}</span></div>`;
+
+    if (synergies.length > 0) {
+        html += `<div class="stat-row"><span class="stat-label">Synergy:</span><span class="stat-value" style="color:#ffcc00">${synergies.join(', ')}</span></div>`;
+    }
+
+    html += `<div class="target-modes">`;
 
     ['first', 'close', 'strong', 'weak'].forEach(m => {
         html += `<button class="target-mode-btn ${tower.targetMode === m ? 'active' : ''}" onclick="window._gameUI.setTargetMode('${m}')">${m[0].toUpperCase()}</button>`;
     });
 
-    html += `</div><button class="sell-btn" onclick="window._gameUI.sellTower()">Sell ($${sellValue})</button>`;
+    html += `</div><button class="sell-btn" onclick="window._gameUI.sellTower()">Sell ($${sellValue}) <span class="hotkey-hint-inline">S</span></button>`;
     content.innerHTML = html;
     panel.style.display = 'block';
 }

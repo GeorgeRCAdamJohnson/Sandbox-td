@@ -8,6 +8,8 @@ import { generateMap } from './map.js';
 import { playSound, setMusicIntensity, updateMusicForWave } from './audio.js';
 import { getWaveConfig } from './enemies.js';
 import { updateHUD, updateSuperButtons, showUpgradeScreen } from './ui.js';
+import { saveGame, saveHighScore, getHighScore } from './save.js';
+import { showStatsScreen, resetLevelStats } from './stats.js';
 
 export function levelComplete() {
     playSound('levelup');
@@ -36,14 +38,21 @@ export function levelComplete() {
         color: '#ffcc00', life: 80, maxLife: 80, vy: -0.3
     });
 
-    if (state.currentLevel >= TOTAL_LEVELS) {
+    if (!state.endlessMode && state.currentLevel >= TOTAL_LEVELS) {
         victory();
         return;
     }
 
+    // Save game between levels (Feature 1)
+    saveGame();
+
     setTimeout(() => {
-        state.gameState = 'upgradeScreen';
-        showUpgradeScreen();
+        // Show stats screen first (Feature 10), then upgrade screen
+        state.gameState = 'statsScreen';
+        showStatsScreen(() => {
+            state.gameState = 'upgradeScreen';
+            showUpgradeScreen();
+        });
     }, 1500);
 }
 
@@ -60,6 +69,10 @@ export function startLevel(lvl) {
     state.towers = [];
     state.pathExtensions = 0;
     state.pathExtendMode = false;
+    state.damageNumbers = [];
+
+    // Reset level stats (Feature 10)
+    resetLevelStats();
 
     generateMap();
     updateHUD();
@@ -70,7 +83,12 @@ export function startLevel(lvl) {
 
     document.getElementById('waveBtn').disabled = false;
     document.getElementById('waveBtn').textContent = `Wave 1/${state.wavesPerLevel}`;
-    document.getElementById('levelDisplay').textContent = `${state.currentLevel} / ${TOTAL_LEVELS}`;
+    document.getElementById('levelDisplay').textContent = state.endlessMode
+        ? `${state.currentLevel} (Endless)`
+        : `${state.currentLevel} / ${TOTAL_LEVELS}`;
+
+    // Wave preview (Feature 5)
+    updateWavePreview();
 
     state.gameState = 'playing';
     requestAnimationFrame(state.gameLoop);
@@ -107,19 +125,64 @@ export function sendNextWave() {
 
     document.getElementById('waveBtn').disabled = true;
     document.getElementById('waveBtn').textContent = 'Wave in progress...';
+    // Hide wave preview during wave
+    let previewEl = document.getElementById('wavePreview');
+    if (previewEl) previewEl.style.display = 'none';
+
     playSound('wave');
     updateMusicForWave();
     updateHUD();
 }
 
+// === WAVE PREVIEW (Feature 5) ===
+export function updateWavePreview() {
+    let previewEl = document.getElementById('wavePreview');
+    if (!previewEl) return;
+
+    let nextWave = state.currentWave + 1;
+    if (nextWave > state.wavesPerLevel || state.waveInProgress) {
+        previewEl.style.display = 'none';
+        return;
+    }
+
+    let config = getWaveConfig(state.currentLevel, nextWave);
+    let html = '<span style="color:#667;font-size:9px;">NEXT: </span>';
+    for (let g of config.groups) {
+        let traitDef = ENEMY_TRAITS[g.trait] || ENEMY_TRAITS.normal;
+        let count = Math.max(1, Math.floor(g.count * traitDef.countMult));
+        html += `<span style="color:${traitDef.color};font-size:9px;">${count}x ${traitDef.name} </span>`;
+    }
+    previewEl.innerHTML = html;
+    previewEl.style.display = 'block';
+}
+
 export function gameOver() {
     state.gameState = 'gameover';
+    // Save high score (Feature 2)
+    saveHighScore(state.score);
+    let highScore = getHighScore();
+
     document.getElementById('gameOverScreen').style.display = 'flex';
-    document.getElementById('gameOverScore').textContent = `Level ${state.currentLevel} | Wave ${state.currentWave} | Score: ${state.score}`;
+    let scoreText = `Level ${state.currentLevel} | Wave ${state.currentWave} | Score: ${state.score}`;
+    if (state.endlessMode) {
+        scoreText += ` | High Score: ${highScore}`;
+    }
+    document.getElementById('gameOverScore').textContent = scoreText;
 }
 
 export function victory() {
     state.gameState = 'victory';
+    saveHighScore(state.score);
     document.getElementById('victoryScreen').style.display = 'flex';
     document.getElementById('victoryScore').textContent = `All ${TOTAL_LEVELS} levels cleared! | Score: ${state.score}`;
+    // Show endless mode button (Feature 2)
+    let endlessBtn = document.getElementById('endlessModeBtn');
+    if (endlessBtn) endlessBtn.style.display = 'inline-block';
+}
+
+// === ENDLESS MODE (Feature 2) ===
+export function startEndlessMode() {
+    state.endlessMode = true;
+    document.getElementById('victoryScreen').style.display = 'none';
+    startLevel(state.currentLevel + 1);
 }

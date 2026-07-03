@@ -132,6 +132,38 @@ export function generateMap() {
             });
         }
     }
+
+    // === SPLIT PATH (Feature 4) ===
+    // On levels 15+, 50% chance to create a fork that rejoins before exit
+    state.splitPath = null;
+    if (state.currentLevel >= 15 && Math.random() < 0.5 && state.path.length > 10) {
+        let forkIdx = Math.floor(state.path.length * 0.3);
+        let rejoinIdx = Math.floor(state.path.length * 0.7);
+        if (rejoinIdx - forkIdx >= 4) {
+            // Create an alternate branch (offset vertically by 1-2 cells)
+            let branchA = [];
+            let branchB = [];
+            for (let i = forkIdx; i <= rejoinIdx; i++) {
+                branchA.push(state.path[i]);
+            }
+            // Generate offset branch
+            let offsetDir = Math.random() < 0.5 ? -1 : 1;
+            let offsetAmt = CELL_SIZE * (1 + Math.floor(Math.random() * 2));
+            for (let i = forkIdx; i <= rejoinIdx; i++) {
+                let newY = state.path[i].y + offsetDir * offsetAmt;
+                // Clamp to canvas
+                newY = Math.max(CELL_SIZE / 2, Math.min(CANVAS_H - CELL_SIZE / 2, newY));
+                branchB.push({ x: state.path[i].x, y: newY });
+                // Mark grid cells for branch
+                let bCol = Math.floor(state.path[i].x / CELL_SIZE);
+                let bRow = Math.floor(newY / CELL_SIZE);
+                if (bRow >= 0 && bRow < GRID_ROWS && bCol >= 0 && bCol < GRID_COLS) {
+                    state.grid[bRow][bCol] = 1;
+                }
+            }
+            state.splitPath = { branchA, branchB, forkIdx, rejoinIdx };
+        }
+    }
 }
 
 // === PATH EXTENSION SYSTEM ===

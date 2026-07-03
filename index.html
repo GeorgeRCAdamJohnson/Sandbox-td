@@ -214,9 +214,22 @@
 <body>
     <div id="startScreen" style="position:fixed;inset:0;background:#050510;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:2000;">
         <h1 style="font-size:52px;color:#00ffc8;text-shadow:0 0 25px rgba(0,255,200,0.7),0 0 50px rgba(0,255,200,0.3);letter-spacing:10px;margin-bottom:8px;">VECTRON TD</h1>
-        <div style="font-size:12px;color:#445;letter-spacing:5px;margin-bottom:40px;">TOWER DEFENSE</div>
-        <button onclick="startGame()" style="background:transparent;border:2px solid #00ffc8;color:#00ffc8;padding:14px 38px;font-family:'Courier New',monospace;font-size:15px;letter-spacing:3px;cursor:pointer;text-transform:uppercase;transition:all 0.3s;" onmouseover="this.style.boxShadow='0 0 25px rgba(0,255,200,0.4)'" onmouseout="this.style.boxShadow='none'">INITIALIZE</button>
-        <div style="margin-top:30px;font-size:10px;color:#445;text-align:center;line-height:2;">
+        <div style="font-size:12px;color:#445;letter-spacing:5px;margin-bottom:20px;">TOWER DEFENSE</div>
+
+        <!-- Difficulty selector (Feature 11) -->
+        <div style="margin-bottom:20px;display:flex;gap:10px;">
+            <button class="diff-btn" id="diff-easy" onclick="setDifficulty('easy')" style="background:transparent;border:1px solid #00ff88;color:#00ff88;padding:8px 16px;font-family:'Courier New',monospace;font-size:11px;cursor:pointer;border-radius:3px;">EASY</button>
+            <button class="diff-btn active" id="diff-normal" onclick="setDifficulty('normal')" style="background:rgba(0,255,200,0.15);border:2px solid #00ffc8;color:#00ffc8;padding:8px 16px;font-family:'Courier New',monospace;font-size:11px;cursor:pointer;border-radius:3px;">NORMAL</button>
+            <button class="diff-btn" id="diff-hard" onclick="setDifficulty('hard')" style="background:transparent;border:1px solid #ff3355;color:#ff3355;padding:8px 16px;font-family:'Courier New',monospace;font-size:11px;cursor:pointer;border-radius:3px;">HARD</button>
+        </div>
+        <div style="margin-bottom:20px;font-size:9px;color:#556;">Easy: 150$/30♥/0.7x HP | Normal: 100$/20♥/1x | Hard: 75$/15♥/1.4x HP</div>
+
+        <div style="display:flex;gap:15px;margin-bottom:20px;">
+            <button onclick="startNewGame()" style="background:transparent;border:2px solid #00ffc8;color:#00ffc8;padding:14px 38px;font-family:'Courier New',monospace;font-size:15px;letter-spacing:3px;cursor:pointer;text-transform:uppercase;transition:all 0.3s;" onmouseover="this.style.boxShadow='0 0 25px rgba(0,255,200,0.4)'" onmouseout="this.style.boxShadow='none'">NEW GAME</button>
+            <button id="continueBtn" onclick="continueGame()" style="display:none;background:transparent;border:2px solid #ffcc00;color:#ffcc00;padding:14px 38px;font-family:'Courier New',monospace;font-size:15px;letter-spacing:3px;cursor:pointer;text-transform:uppercase;transition:all 0.3s;" onmouseover="this.style.boxShadow='0 0 25px rgba(255,204,0,0.4)'" onmouseout="this.style.boxShadow='none'">CONTINUE</button>
+        </div>
+
+        <div style="margin-top:10px;font-size:10px;color:#445;text-align:center;line-height:2;">
             30 LEVELS | RANDOM MAPS | UPGRADE BETWEEN LEVELS<br>
             CLICK TO PLACE | RIGHT-CLICK TO DESELECT | SPACE FOR NEXT WAVE<br>
             1-4: SELECT TOWERS | S: SELL | ESC: DESELECT<br>
@@ -233,11 +246,19 @@
     <div id="victoryScreen" style="position:fixed;inset:0;background:rgba(5,5,16,0.95);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:2000;">
         <h1 style="font-size:36px;color:#00ffc8;text-shadow:0 0 20px rgba(0,255,200,0.7);letter-spacing:5px;margin-bottom:15px;">SYSTEM SECURED</h1>
         <div id="victoryScore" style="font-size:16px;color:#00ffc8;margin-bottom:25px;"></div>
-        <button onclick="location.reload()" style="background:transparent;border:2px solid #00ffc8;color:#00ffc8;padding:12px 30px;font-family:'Courier New',monospace;font-size:14px;letter-spacing:2px;cursor:pointer;">PLAY AGAIN</button>
+        <div style="display:flex;gap:15px;">
+            <button onclick="location.reload()" style="background:transparent;border:2px solid #00ffc8;color:#00ffc8;padding:12px 30px;font-family:'Courier New',monospace;font-size:14px;letter-spacing:2px;cursor:pointer;">PLAY AGAIN</button>
+            <button id="endlessModeBtn" onclick="startEndlessMode()" style="display:none;background:transparent;border:2px solid #ffcc00;color:#ffcc00;padding:12px 30px;font-family:'Courier New',monospace;font-size:14px;letter-spacing:2px;cursor:pointer;">ENDLESS MODE</button>
+        </div>
     </div>
     <!-- UPGRADE SCREEN -->
     <div id="upgradeScreen" style="position:fixed;inset:0;background:rgba(5,5,16,0.97);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:2000;">
         <div id="upgradeContent" style="max-width:700px;width:90%;"></div>
+    </div>
+
+    <!-- STATS SCREEN (Feature 10) -->
+    <div id="statsScreen" style="position:fixed;inset:0;background:rgba(5,5,16,0.95);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:2000;">
+        <div id="statsContent" style="max-width:400px;width:90%;border:1px solid rgba(0,255,200,0.3);padding:20px;border-radius:5px;background:rgba(0,10,10,0.8);"></div>
     </div>
 
     <div id="gameContainer">
@@ -262,21 +283,25 @@
                         <div class="tower-icon">&#9670;</div>
                         <div>Laser</div>
                         <div class="tower-cost">$30</div>
+                        <div class="hotkey-hint">1</div>
                     </div>
                     <div class="tower-btn red" onclick="selectTower('red')" id="btn-red">
                         <div class="tower-icon">&#9650;</div>
                         <div>Rocket</div>
                         <div class="tower-cost">$65</div>
+                        <div class="hotkey-hint">2</div>
                     </div>
                     <div class="tower-btn purple" onclick="selectTower('purple')" id="btn-purple">
                         <div class="tower-icon">&#9733;</div>
                         <div>Beam</div>
                         <div class="tower-cost">$90</div>
+                        <div class="hotkey-hint">3</div>
                     </div>
                     <div class="tower-btn blue" onclick="selectTower('blue')" id="btn-blue">
                         <div class="tower-icon">&#9679;</div>
                         <div>Freeze</div>
                         <div class="tower-cost">$55</div>
+                        <div class="hotkey-hint">4</div>
                     </div>
                 </div>
             </div>
@@ -291,9 +316,10 @@
                 <div id="towerInfoContent"></div>
             </div>
 
-            <button id="waveBtn" onclick="sendNextWave()">Wave 1/5</button>
+            <button id="waveBtn" onclick="sendNextWave()">Wave 1/5 <span class="hotkey-hint-inline">Space</span></button>
+            <div id="wavePreview" style="display:none;padding:4px 6px;background:rgba(0,20,20,0.4);border:1px solid rgba(0,255,200,0.1);border-radius:3px;font-size:9px;"></div>
             <button id="extendBtn" onclick="startPathExtend()" style="display:none;background:rgba(255,136,68,0.08);border:1px solid rgba(255,136,68,0.6);color:#ff8844;padding:8px;border-radius:3px;cursor:pointer;font-family:'Courier New',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;">Extend Path ($100)</button>
-            <button id="deselectBtn" onclick="deselectAll()">✕ DESELECT</button>
+            <button id="deselectBtn" onclick="deselectAll()">✕ DESELECT <span class="hotkey-hint-inline">Esc</span></button>
 
             <div class="panel">
                 <h3>Speed</h3>
@@ -373,6 +399,40 @@
 
         @media (max-width: 1100px) {
             .upgrade-grid { grid-template-columns: 1fr; }
+        }
+
+        /* Hotkey hints (Feature 9) - desktop only */
+        .hotkey-hint {
+            font-size: 8px;
+            color: #556;
+            margin-top: 2px;
+        }
+        .hotkey-hint-inline {
+            font-size: 8px;
+            color: #556;
+            margin-left: 4px;
+        }
+        /* Hide hotkeys on touch devices */
+        @media (pointer: coarse) {
+            .hotkey-hint, .hotkey-hint-inline { display: none; }
+        }
+
+        /* Difficulty buttons (Feature 11) */
+        .diff-btn { transition: all 0.2s; }
+        .diff-btn.active { background: rgba(0,255,200,0.15) !important; border-width: 2px !important; }
+
+        /* Stats screen (Feature 10) */
+        .stats-header { text-align: center; margin-bottom: 15px; }
+        .stats-header h2 { color: #00ffc8; font-size: 18px; letter-spacing: 3px; text-shadow: 0 0 10px rgba(0,255,200,0.4); }
+        .stats-grid { }
+        .stats-row { display: flex; justify-content: space-between; font-size: 11px; color: #aaa; margin-bottom: 4px; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+
+        /* Larger touch targets for mobile (Feature 8) */
+        @media (pointer: coarse) {
+            .tower-btn { min-height: 60px; padding: 10px 5px !important; }
+            #waveBtn { min-height: 44px; font-size: 13px !important; }
+            #deselectBtn { min-height: 44px; }
+            .sell-btn { min-height: 36px; padding: 8px !important; }
         }
     </style>
 

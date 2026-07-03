@@ -5,7 +5,7 @@
 export const state = {
     canvas: null,
     ctx: null,
-    gameState: 'menu', // menu, playing, upgradeScreen, gameover, victory
+    gameState: 'menu', // menu, playing, upgradeScreen, gameover, victory, statsScreen
     gameSpeed: 1,
     money: 100,
     lives: 20,
@@ -73,4 +73,34 @@ export const state = {
     lastTime: 0,
     isMobile: false,
     gameLoop: null,
+
+    // === Difficulty system (Feature 11) ===
+    difficulty: 'normal', // 'easy', 'normal', 'hard'
+
+    // === Endless mode (Feature 2) ===
+    endlessMode: false,
+    endlessHighScore: 0,
+
+    // === Tower synergies (Feature 3) ===
+    // (synergies computed on-the-fly, no extra state needed)
+
+    // === Split paths (Feature 4) ===
+    splitPath: null, // {branchA: [], branchB: [], forkIdx: number, rejoinIdx: number}
+
+    // === Damage numbers (Feature 6) ===
+    damageNumbers: [],
+
+    // === Tower kill counter (Feature 7) ===
+    // (kills tracked per tower object)
+
+    // === Better mobile UX (Feature 8) ===
+    lastTapTime: 0,
+
+    // === Statistics (Feature 10) ===
+    levelStats: {
+        damageByType: { green: 0, red: 0, purple: 0, blue: 0 },
+        enemiesKilled: 0,
+        moneyEarned: 0,
+        livesLostThisLevel: 0,
+    },
 };
