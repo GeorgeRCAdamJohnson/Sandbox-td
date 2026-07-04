@@ -4,8 +4,12 @@
 
 import { CELL_SIZE, GRID_COLS, GRID_ROWS, CANVAS_W, CANVAS_H, EXTENSION_BASE_COST, EXTENSION_LENGTH, MAX_EXTENSIONS_PER_LEVEL } from './constants.js';
 import { state } from './state.js';
-import { updateHUD } from './ui.js';
 import { playSound } from './audio.js';
+
+// Late-import to break circular: map.js <-> ui.js
+function updateHUD() {
+    import('./ui.js').then(mod => mod.updateHUD());
+}
 
 // === RANDOM MAP GENERATOR ===
 export function generateMap() {
