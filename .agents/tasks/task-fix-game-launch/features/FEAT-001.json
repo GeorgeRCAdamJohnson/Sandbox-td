@@ -1,0 +1,21 @@
+{
+  "id": "FEAT-001",
+  "type": "fix",
+  "description": "Fix syntax error in src/map.js that prevents the game from launching. There is an extra closing brace '}' on line 296 (after the closing brace of the placePathCell function). This causes a module parse error that prevents the entire module graph from loading, so window.startNewGame is never assigned.",
+  "status": "completed",
+  "steps": [
+    "Open src/map.js and locate the placePathCell function ending around lines 293-296. There are two consecutive closing braces '} }' where the second one is extraneous.",
+    "Remove the extra '}' on line 296 (the one that comes after the closing brace of placePathCell on line 295).",
+    "Run verification: for f in src/*.js game.js; do node --input-type=module --check < \"$f\" 2>&1; done - ALL files must pass with no errors."
+  ],
+  "acceptance_criteria": [
+    "Running 'node --input-type=module --check < src/map.js' produces no errors",
+    "Running the same check on all other .js files also produces no errors",
+    "The game's module graph can be fully loaded without parse errors"
+  ],
+  "verification": [
+    "cd /projects/sandbox/Sandbox-td && for f in src/*.js game.js; do echo \"=== $f ===\"; node --input-type=module --check < \"$f\" 2>&1 || exit 1; done"
+  ],
+  "blocked_reason": null,
+  "findings": "Removed the extra closing brace on line 296 of src/map.js. All JS files pass module syntax check successfully."
+}

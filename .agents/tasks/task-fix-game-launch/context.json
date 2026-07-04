@@ -1,0 +1,16 @@
+{
+  "project_type": "HTML5 Tower Defense game using ES modules",
+  "language": "JavaScript (ES modules)",
+  "build_system": "None - static files served by browser",
+  "test_framework": "None - manual testing only",
+  "build_command": "node --input-type=module --check for each .js file",
+  "test_command": "for f in src/*.js game.js; do node --input-type=module --check < \"$f\"; done",
+  "verification_instructions": "Run node --input-type=module --check on all .js files to confirm no syntax errors when parsed as ES modules. Note: plain 'node --check' does NOT detect module-level syntax errors.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "No setup needed - static HTML/JS files",
+  "environment_constraints": "Browser-based game - no server-side runtime. Validation must use node --input-type=module --check to properly detect module syntax errors.",
+  "contribution_requirements": "Commit changes after fixing, do not push.",
+  "key_patterns": "Dynamic import() used to break circular deps between ui.js<->levels.js and map.js<->ui.js. All modules use ES module syntax (import/export). game.js is the entry point loaded by index.html with type=module.",
+  "relevant_files": ["src/map.js", "game.js", "src/ui.js", "src/levels.js", "src/input.js"],
+  "directory_structure": "Root: game.js (entry), index.html. src/: constants.js, state.js, map.js, audio.js, enemies.js, towers.js, renderer.js, input.js, ui.js, levels.js, save.js, stats.js"
+}

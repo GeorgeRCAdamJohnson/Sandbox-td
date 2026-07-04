@@ -2,7 +2,7 @@
 // VECTRON TD - Level System
 // ============================================
 
-import { TOTAL_LEVELS, CANVAS_W, CANVAS_H, ENEMY_TRAITS } from './constants.js';
+import { TOTAL_LEVELS, CANVAS_W, CANVAS_H, ENEMY_TRAITS, TOWER_DEFS } from './constants.js';
 import { state } from './state.js';
 import { generateMap } from './map.js';
 import { playSound, setMusicIntensity, updateMusicForWave } from './audio.js';
@@ -70,6 +70,14 @@ export function startLevel(lvl) {
     state.pathExtensions = 0;
     state.pathExtendMode = false;
     state.damageNumbers = [];
+
+    // Level 30+ guarantee: player always has enough to place at least 3 cheap towers
+    if (lvl >= 30) {
+        let minMoney = TOWER_DEFS.green.cost * 3;
+        if (state.money < minMoney) {
+            state.money = minMoney;
+        }
+    }
 
     // Reset level stats (Feature 10)
     resetLevelStats();
