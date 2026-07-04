@@ -293,7 +293,6 @@ export function placePathCell(col, row) {
     finishPathExtend();
     return true;
 }
-}
 
 export function finishPathExtend() {
     state.pathExtendMode = false;
