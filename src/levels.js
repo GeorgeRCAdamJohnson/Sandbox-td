@@ -2,7 +2,7 @@
 // VECTRON TD - Level System
 // ============================================
 
-import { TOTAL_LEVELS, CANVAS_W, CANVAS_H, ENEMY_TRAITS, TOWER_DEFS } from './constants.js';
+import { TOTAL_LEVELS, CANVAS_W, CANVAS_H, ENEMY_TRAITS, TOWER_DEFS, SUPER_DEFS } from './constants.js';
 import { state } from './state.js';
 import { generateMap } from './map.js';
 import { playSound, setMusicIntensity, updateMusicForWave } from './audio.js';
@@ -71,9 +71,10 @@ export function startLevel(lvl) {
     state.pathExtendMode = false;
     state.damageNumbers = [];
 
-    // Level 30+ guarantee: player always has enough to place at least 3 cheap towers
+    // Level 30+ guarantee: player always has enough to place 3 super weapons
     if (lvl >= 30) {
-        let minMoney = TOWER_DEFS.green.cost * 3;
+        let maxSuperCost = Math.max(...Object.values(SUPER_DEFS).map(d => d.cost));
+        let minMoney = maxSuperCost * 3; // 3x most expensive super (Disintegrate $300 = $900)
         if (state.money < minMoney) {
             state.money = minMoney;
         }
