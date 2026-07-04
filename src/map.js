@@ -23,126 +23,62 @@ export function generateMap() {
     }
     state.pathCells = [];
 
-    // Generate a non-overlapping winding path left-to-right
-    // Strategy: divide grid into vertical columns, snake up and down
-    let startY = 1 + Math.floor(Math.random() * (GRID_ROWS - 2));
-    let endY = 1 + Math.floor(Math.random() * (GRID_ROWS - 2));
+    // Simple non-crossing snake path generator
+    // Strategy: go right in lanes, connecting them with short verticals
+    // This GUARANTEES no crossing because each lane is at a unique Y
+    let numLanes = 3 + Math.floor(Math.random() * 2); // 3-4 lanes
+    let laneYs = [];
 
-    // Create waypoints that zigzag - ensure no path crossing
-    let numSegments = 3 + Math.floor(Math.random() * 3); // 3-5 segments
-    let segWidth = Math.floor((GRID_COLS - 2) / numSegments);
-
-    let waypoints = [{ x: 0, y: startY }];
-
-    // Generate waypoints ensuring they create a non-crossing path
-    let prevY = startY;
-    for (let i = 1; i <= numSegments; i++) {
-        let x = Math.min(GRID_COLS - 2, i * segWidth + Math.floor(Math.random() * 2));
-        // Alternate between top half and bottom half to create zigzag
-        let newY;
-        if (i % 2 === 1) {
-            // Go to opposite side of prevY
-            if (prevY < GRID_ROWS / 2) {
-                newY = Math.min(GRID_ROWS - 2, prevY + 3 + Math.floor(Math.random() * 5));
-            } else {
-                newY = Math.max(1, prevY - 3 - Math.floor(Math.random() * 5));
-            }
-        } else {
-            if (prevY >= GRID_ROWS / 2) {
-                newY = Math.max(1, prevY - 3 - Math.floor(Math.random() * 5));
-            } else {
-                newY = Math.min(GRID_ROWS - 2, prevY + 3 + Math.floor(Math.random() * 5));
-            }
-        }
-        newY = Math.max(1, Math.min(GRID_ROWS - 2, newY));
-        waypoints.push({ x, y: newY });
-        prevY = newY;
+    // Distribute lanes evenly across grid height
+    for (let i = 0; i < numLanes; i++) {
+        let y = Math.floor((i + 0.5) * (GRID_ROWS / numLanes));
+        y = Math.max(1, Math.min(GRID_ROWS - 2, y + Math.floor(Math.random() * 3) - 1));
+        laneYs.push(y);
     }
-    waypoints.push({ x: GRID_COLS - 1, y: endY });
 
-    // Build path cell-by-cell with NO overlaps
-    let usedCells = new Set();
     let cellPath = [];
 
-    function addCell(x, y) {
-        let key = x + ',' + y;
-        if (x < 0 || x >= GRID_COLS || y < 0 || y >= GRID_ROWS) return false;
-        if (usedCells.has(key)) return false;
-        usedCells.add(key);
-        cellPath.push({ x, y });
-        return true;
-    }
+    for (let lane = 0; lane < numLanes; lane++) {
+        let y = laneYs[lane];
+        let goingRight = (lane % 2 === 0);
 
-    // Add start
-    addCell(waypoints[0].x, waypoints[0].y);
-
-    for (let seg = 0; seg < waypoints.length - 1; seg++) {
-        let from = waypoints[seg];
-        let to = waypoints[seg + 1];
-
-        // Move horizontal first, then vertical
-        // If a cell is already used, try to go around it
-        let cx = from.x, cy = from.y;
-
-        // Horizontal movement
-        let stepX = to.x > cx ? 1 : (to.x < cx ? -1 : 0);
-        while (cx !== to.x) {
-            let nextX = cx + stepX;
-            let key = nextX + ',' + cy;
-            if (usedCells.has(key)) {
-                // Cell occupied - try to detour vertically
-                let detourY = cy + (Math.random() < 0.5 ? 1 : -1);
-                detourY = Math.max(0, Math.min(GRID_ROWS - 1, detourY));
-                if (!usedCells.has(cx + ',' + detourY)) {
-                    addCell(cx, detourY);
-                    cy = detourY;
-                    if (!usedCells.has(nextX + ',' + cy)) {
-                        addCell(nextX, cy);
-                        cx = nextX;
-                    }
-                } else {
-                    // Can't detour, skip this cell
-                    cx = nextX;
-                }
-            } else {
-                addCell(nextX, cy);
-                cx = nextX;
+        if (goingRight) {
+            // Horizontal lane going right
+            let startX = (lane === 0) ? 0 : 1;
+            let endX = (lane === numLanes - 1) ? GRID_COLS - 1 : GRID_COLS - 2;
+            for (let x = startX; x <= endX; x++) {
+                cellPath.push({ x, y });
+            }
+        } else {
+            // Horizontal lane going left
+            let startX = (lane === numLanes - 1) ? GRID_COLS - 1 : GRID_COLS - 2;
+            let endX = 1;
+            for (let x = startX; x >= endX; x--) {
+                cellPath.push({ x, y });
             }
         }
 
-        // Vertical movement
-        let stepY = to.y > cy ? 1 : (to.y < cy ? -1 : 0);
-        while (cy !== to.y) {
-            let nextY = cy + stepY;
-            let key = cx + ',' + nextY;
-            if (usedCells.has(key)) {
-                // Cell occupied - try horizontal detour
-                let detourX = cx + (Math.random() < 0.5 ? 1 : -1);
-                detourX = Math.max(0, Math.min(GRID_COLS - 1, detourX));
-                if (!usedCells.has(detourX + ',' + cy)) {
-                    addCell(detourX, cy);
-                    cx = detourX;
-                    if (!usedCells.has(cx + ',' + nextY)) {
-                        addCell(cx, nextY);
-                        cy = nextY;
-                    }
-                } else {
-                    cy = nextY;
-                }
-            } else {
-                addCell(cx, nextY);
-                cy = nextY;
+        // Connect to next lane with vertical segment
+        if (lane < numLanes - 1) {
+            let connectX = goingRight ? (GRID_COLS - 2) : 1;
+            let nextY = laneYs[lane + 1];
+            let stepY = nextY > y ? 1 : -1;
+            let cy = y;
+            while (cy !== nextY) {
+                cy += stepY;
+                cellPath.push({ x: connectX, y: cy });
             }
         }
     }
 
-    // Ensure path has at least 10 cells
-    if (cellPath.length < 10) {
-        // Fallback: simple L-shaped path
-        cellPath = [];
-        usedCells.clear();
-        for (let x = 0; x < GRID_COLS; x++) {
-            addCell(x, startY);
+    // Ensure path ends at right edge
+    let lastCell = cellPath[cellPath.length - 1];
+    if (lastCell.x !== GRID_COLS - 1) {
+        let stepX = GRID_COLS - 1 > lastCell.x ? 1 : -1;
+        let x = lastCell.x;
+        while (x !== GRID_COLS - 1) {
+            x += stepX;
+            cellPath.push({ x, y: lastCell.y });
         }
     }
 
