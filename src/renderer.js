@@ -6,8 +6,20 @@ import { CELL_SIZE, GRID_COLS, GRID_ROWS, CANVAS_W, CANVAS_H, TOWER_DEFS, SUPER_
 import { state } from './state.js';
 import { getTowerStats, getTowerSynergies } from './towers.js';
 
+// Helper: only apply shadow blur when not in low-perf mode
+function glow(ctx, blur, color) {
+    if (!state.lowPerfMode) {
+        ctx.shadowBlur = blur;
+        if (color) ctx.shadowColor = color;
+    }
+}
+function noGlow(ctx) {
+    noGlow(ctx);
+}
+
 export function render() {
     let ctx = state.ctx;
+    let lowPerf = state.lowPerfMode;
 
     // Screen shake
     if (state.screenShake > 0) {
@@ -21,14 +33,14 @@ export function render() {
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
     drawTronGrid();
-    drawWeather();
+    if (!lowPerf) drawWeather();
     drawPath();
     drawTowers();
     drawEnemies();
     drawProjectiles();
     drawParticles();
     drawFloatingTexts();
-    drawDamageNumbers();
+    if (!lowPerf) drawDamageNumbers();
     drawCombo();
     drawHoverPreview();
 
@@ -60,24 +72,28 @@ export function drawTronGrid() {
     }
 
 
-    // Bright intersection dots
-    ctx.fillStyle = `rgba(0, 255, 200, ${0.25 * state.gridPulse})`;
-    for (let r = 0; r <= GRID_ROWS; r++) {
-        for (let c = 0; c <= GRID_COLS; c++) {
-            ctx.beginPath();
-            ctx.arc(c * CELL_SIZE, r * CELL_SIZE, 1.5, 0, Math.PI * 2);
-            ctx.fill();
+    // Bright intersection dots (skip in low-perf mode)
+    if (!state.lowPerfMode) {
+        ctx.fillStyle = `rgba(0, 255, 200, ${0.25 * state.gridPulse})`;
+        for (let r = 0; r <= GRID_ROWS; r++) {
+            for (let c = 0; c <= GRID_COLS; c++) {
+                ctx.beginPath();
+                ctx.arc(c * CELL_SIZE, r * CELL_SIZE, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
     }
 
-    // Animated scan lines
-    let scanY = (state.animFrame * 0.5) % CANVAS_H;
-    ctx.strokeStyle = `rgba(0, 255, 200, 0.04)`;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, scanY);
-    ctx.lineTo(CANVAS_W, scanY);
-    ctx.stroke();
+    // Animated scan lines (skip in low-perf)
+    if (!state.lowPerfMode) {
+        let scanY = (state.animFrame * 0.5) % CANVAS_H;
+        ctx.strokeStyle = `rgba(0, 255, 200, 0.04)`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, scanY);
+        ctx.lineTo(CANVAS_W, scanY);
+        ctx.stroke();
+    }
 
     // Cell highlights for buildable areas near hover
     if (state.hoveredCell && state.selectedTowerType) {
@@ -134,7 +150,7 @@ export function drawPath() {
     if (state.path.length > 1) {
         ctx.strokeStyle = 'rgba(0, 255, 200, 0.6)';
         ctx.lineWidth = 2;
-        ctx.shadowBlur = 8;
+        glow(ctx, 8);
         ctx.shadowColor = 'rgba(0, 255, 200, 0.5)';
         ctx.setLineDash([8, 16]);
         ctx.lineDashOffset = -state.animFrame * 0.5;
@@ -145,18 +161,18 @@ export function drawPath() {
         }
         ctx.stroke();
         ctx.setLineDash([]);
-        ctx.shadowBlur = 0;
+        noGlow(ctx);
 
         ctx.fillStyle = '#00ffc8';
         ctx.font = 'bold 10px monospace';
         ctx.textAlign = 'center';
-        ctx.shadowBlur = 10;
+        glow(ctx, 10);
         ctx.shadowColor = '#00ffc8';
         ctx.fillText('▶ ENTRY', state.path[0].x, state.path[0].y - 12);
         ctx.fillStyle = '#ff3355';
         ctx.shadowColor = '#ff3355';
         ctx.fillText('■ EXIT', state.path[state.path.length - 1].x, state.path[state.path.length - 1].y - 12);
-        ctx.shadowBlur = 0;
+        noGlow(ctx);
     }
 }
 
@@ -187,7 +203,7 @@ export function drawTowers() {
             ctx.globalAlpha = 1;
         }
 
-        ctx.shadowBlur = 12;
+        glow(ctx, 12);
         ctx.shadowColor = def.color;
 
         ctx.fillStyle = def.colorDim || 'rgba(0,255,200,0.1)';
@@ -244,12 +260,12 @@ export function drawTowers() {
             ctx.fillText('S', x, y + 3);
         }
 
-        ctx.shadowBlur = 0;
+        noGlow(ctx);
 
         if (tower.beamTarget) {
             ctx.strokeStyle = def.color;
             ctx.lineWidth = 2 + Math.random() * 2;
-            ctx.shadowBlur = 15;
+            glow(ctx, 15);
             ctx.shadowColor = def.color;
             ctx.globalAlpha = tower.beamTimer / 8;
             ctx.beginPath();
@@ -257,7 +273,7 @@ export function drawTowers() {
             ctx.lineTo(tower.beamTarget.x, tower.beamTarget.y);
             ctx.stroke();
             ctx.globalAlpha = 1;
-            ctx.shadowBlur = 0;
+            noGlow(ctx);
         }
 
         // Kill tier indicator (Feature 7)
@@ -301,7 +317,7 @@ export function drawEnemies() {
         let trait = ENEMY_TRAITS[e.trait] || ENEMY_TRAITS.normal;
         let shape = trait.shape || 'diamond';
 
-        ctx.shadowBlur = 6;
+        glow(ctx, 6);
         ctx.shadowColor = e.color;
         ctx.strokeStyle = e.color;
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
@@ -376,7 +392,7 @@ export function drawEnemies() {
         }
 
         ctx.globalAlpha = 1;
-        ctx.shadowBlur = 0;
+        noGlow(ctx);
 
         // HP bar
         if (e.hp < e.maxHp) {
@@ -414,7 +430,7 @@ export function drawEnemies() {
 export function drawProjectiles() {
     let ctx = state.ctx;
     for (let p of state.projectiles) {
-        ctx.shadowBlur = 6;
+        glow(ctx, 6);
         ctx.shadowColor = p.color;
         ctx.fillStyle = p.color;
 
@@ -430,7 +446,7 @@ export function drawProjectiles() {
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();
-        ctx.shadowBlur = 0;
+        noGlow(ctx);
     }
 }
 
@@ -439,7 +455,7 @@ export function drawParticles() {
     for (let p of state.particles) {
         ctx.globalAlpha = p.life / p.maxLife;
         ctx.fillStyle = p.color;
-        ctx.shadowBlur = 4;
+        glow(ctx, 4);
         ctx.shadowColor = p.color;
 
         if (p.type === 'fragment' && p.rotation !== undefined) {
@@ -463,7 +479,7 @@ export function drawParticles() {
         }
     }
     ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0;
+    noGlow(ctx);
 }
 
 export function drawFloatingTexts() {
@@ -473,12 +489,12 @@ export function drawFloatingTexts() {
         ctx.fillStyle = ft.color;
         ctx.font = 'bold 11px monospace';
         ctx.textAlign = 'center';
-        ctx.shadowBlur = 4;
+        glow(ctx, 4);
         ctx.shadowColor = ft.color;
         ctx.fillText(ft.text, ft.x, ft.y);
     }
     ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0;
+    noGlow(ctx);
 }
 
 // === DAMAGE NUMBERS (Feature 6) ===
@@ -505,11 +521,11 @@ export function drawCombo() {
     ctx.textAlign = 'right';
     let alpha = Math.min(1, state.comboTimer / 30);
     ctx.globalAlpha = alpha;
-    ctx.shadowBlur = 12;
+    glow(ctx, 12);
     ctx.shadowColor = '#ffcc00';
     ctx.fillStyle = '#ffcc00';
     ctx.fillText(text, CANVAS_W - 12, 25);
-    ctx.shadowBlur = 0;
+    noGlow(ctx);
     ctx.globalAlpha = 1;
     ctx.restore();
 }

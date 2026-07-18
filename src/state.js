@@ -113,6 +113,11 @@ export const state = {
     comboTimer: 0,
     maxCombo: 0,
 
-    // === Weather Effects ===
-    weatherTier: 0,
+    // === Performance ===
+    performanceMode: 'auto', // 'auto', 'high', 'low'
+    lowPerfMode: false, // true when on mobile or FPS drops
+    frameCount: 0,
+    fpsCheckTime: 0,
+    currentFPS: 60,
+    maxParticles: 200,
 };

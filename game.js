@@ -125,6 +125,14 @@ function launchGame(startLvl) {
     document.getElementById('gameContainer').style.display = 'flex';
     initAudio();
 
+    // Detect mobile/low-power devices and set performance mode
+    let isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    let isLowPower = isMobile || window.innerWidth < 900;
+    if (isLowPower) {
+        state.lowPerfMode = true;
+        state.maxParticles = 60;
+    }
+
     state.canvas = document.getElementById('gameCanvas');
     state.canvas.width = CANVAS_W;
     state.canvas.height = CANVAS_H;
@@ -152,6 +160,26 @@ function resizeCanvas() {
 // === GAME LOOP ===
 export function gameLoop(ts) {
     if (state.gameState !== 'playing') return;
+
+    // FPS monitoring for auto performance mode
+    state.frameCount++;
+    if (ts - state.fpsCheckTime > 2000) { // Check every 2 seconds
+        state.currentFPS = Math.round(state.frameCount / ((ts - state.fpsCheckTime) / 1000));
+        state.frameCount = 0;
+        state.fpsCheckTime = ts;
+
+        // Auto-switch to low perf if FPS drops below 30
+        if (state.performanceMode === 'auto') {
+            if (state.currentFPS < 30 && !state.lowPerfMode) {
+                state.lowPerfMode = true;
+                state.maxParticles = 50;
+            } else if (state.currentFPS > 50 && state.lowPerfMode) {
+                state.lowPerfMode = false;
+                state.maxParticles = 200;
+            }
+        }
+    }
+
     state.lastTime = ts;
     state.animFrame++;
     for (let i = 0; i < state.gameSpeed; i++) update();

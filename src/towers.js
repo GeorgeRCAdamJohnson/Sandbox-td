@@ -278,6 +278,13 @@ export function spawnDamageNumber(x, y, damage, mult) {
 
 // === PARTICLES ===
 export function spawnParticles(x, y, color, count) {
+    // Cap particles for performance
+    let maxNew = state.maxParticles - state.particles.length;
+    if (maxNew <= 0) return;
+    count = Math.min(count, maxNew);
+    // Reduce count in low-perf mode
+    if (state.lowPerfMode) count = Math.max(1, Math.floor(count * 0.4));
+
     for (let i = 0; i < count; i++) {
         let a = Math.random() * Math.PI * 2;
         let spd = 1 + Math.random() * 3;
