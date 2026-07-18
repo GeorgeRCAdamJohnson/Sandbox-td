@@ -8,10 +8,20 @@ import { getTowerStats, getTowerSynergies } from './towers.js';
 
 export function render() {
     let ctx = state.ctx;
+
+    // Screen shake
+    if (state.screenShake > 0) {
+        ctx.save();
+        let shakeX = (Math.random() - 0.5) * 2 * state.screenShake;
+        let shakeY = (Math.random() - 0.5) * 2 * state.screenShake;
+        ctx.translate(shakeX, shakeY);
+    }
+
     ctx.fillStyle = '#050510';
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
     drawTronGrid();
+    drawWeather();
     drawPath();
     drawTowers();
     drawEnemies();
@@ -19,7 +29,13 @@ export function render() {
     drawParticles();
     drawFloatingTexts();
     drawDamageNumbers();
+    drawCombo();
     drawHoverPreview();
+
+    // End screen shake
+    if (state.screenShake > 0) {
+        ctx.restore();
+    }
 }
 
 export function drawTronGrid() {
@@ -78,7 +94,19 @@ export function drawTronGrid() {
 
 export function drawPath() {
     let ctx = state.ctx;
-    for (let p of state.pathCells) {
+
+    // Path danger glow: check if any enemy is in last 20% of path
+    let dangerZone = false;
+    let dangerStart = Math.floor(state.path.length * 0.8);
+    for (let e of state.enemies) {
+        if (e.pathIdx > dangerStart) {
+            dangerZone = true;
+            break;
+        }
+    }
+
+    for (let i = 0; i < state.pathCells.length; i++) {
+        let p = state.pathCells[i];
         let x = p.x * CELL_SIZE;
         let y = p.y * CELL_SIZE;
 
@@ -88,6 +116,19 @@ export function drawPath() {
         ctx.strokeStyle = 'rgba(0, 255, 200, 0.3)';
         ctx.lineWidth = 1;
         ctx.strokeRect(x + 1, y + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+    }
+
+    // Draw danger glow on last 20% of path cells
+    if (dangerZone) {
+        let pulse = Math.sin(state.animFrame * 0.1) * 0.3 + 0.5;
+        let startIdx = Math.floor(state.pathCells.length * 0.8);
+        for (let i = startIdx; i < state.pathCells.length; i++) {
+            let p = state.pathCells[i];
+            let x = p.x * CELL_SIZE;
+            let y = p.y * CELL_SIZE;
+            ctx.fillStyle = `rgba(255, 0, 50, ${0.15 * pulse})`;
+            ctx.fillRect(x + 1, y + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+        }
     }
 
     if (state.path.length > 1) {
@@ -239,6 +280,16 @@ export function drawTowers() {
             ctx.fillText('⚡', x, y + size + 10);
             ctx.globalAlpha = 1;
         }
+
+        // Tower fire flash
+        if (tower.fireFlash > 0) {
+            ctx.globalAlpha = tower.fireFlash / 8;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(x, y, size + 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
     }
 }
 
@@ -263,7 +314,33 @@ export function drawEnemies() {
             ctx.fillStyle = 'rgba(0,80,0,0.5)';
         }
 
-        if (shape === 'hexagon' || e.type === 'boss') {
+        // Maze Builder (Architect) special rendering
+        if (e.trait === 'mazeBuilder') {
+            let pulse = 1 + Math.sin(state.animFrame * 0.08) * 0.15;
+            let outerSize = size * pulse * 1.2;
+            ctx.strokeStyle = '#ff00ff';
+            ctx.fillStyle = 'rgba(255,0,255,0.2)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                let a = (i * Math.PI * 2) / 6 + e.angle;
+                let px = e.x + Math.cos(a) * outerSize;
+                let py = e.y + Math.sin(a) * outerSize;
+                if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            // Inner spinning detail
+            ctx.strokeStyle = 'rgba(255,0,255,0.7)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                let a = (i * Math.PI * 2) / 6 - e.angle * 2;
+                let px = e.x + Math.cos(a) * (outerSize * 0.5);
+                let py = e.y + Math.sin(a) * (outerSize * 0.5);
+                if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.closePath(); ctx.stroke();
+        } else if (shape === 'hexagon' || e.type === 'boss') {
             ctx.beginPath();
             for (let i = 0; i < 6; i++) {
                 let a = (i * Math.PI * 2) / 6 + e.angle;
@@ -364,9 +441,26 @@ export function drawParticles() {
         ctx.fillStyle = p.color;
         ctx.shadowBlur = 4;
         ctx.shadowColor = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * (p.life / p.maxLife), 0, Math.PI * 2);
-        ctx.fill();
+
+        if (p.type === 'fragment' && p.rotation !== undefined) {
+            // Update rotation
+            p.rotation += p.rotSpeed;
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rotation);
+            let s = p.size * (p.life / p.maxLife);
+            ctx.beginPath();
+            ctx.moveTo(0, -s);
+            ctx.lineTo(s * 0.8, s * 0.6);
+            ctx.lineTo(-s * 0.8, s * 0.6);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        } else {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size * (p.life / p.maxLife), 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
     ctx.globalAlpha = 1;
     ctx.shadowBlur = 0;
@@ -400,6 +494,73 @@ export function drawDamageNumbers() {
     ctx.globalAlpha = 1;
 }
 
+
+// === COMBO DISPLAY ===
+export function drawCombo() {
+    if (state.comboCount <= 5) return;
+    let ctx = state.ctx;
+    let text = state.comboCount + 'x COMBO';
+    ctx.save();
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'right';
+    let alpha = Math.min(1, state.comboTimer / 30);
+    ctx.globalAlpha = alpha;
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = '#ffcc00';
+    ctx.fillStyle = '#ffcc00';
+    ctx.fillText(text, CANVAS_W - 12, 25);
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+    ctx.restore();
+}
+
+// === WEATHER EFFECTS ===
+export function drawWeather() {
+    if (state.weatherTier <= 0) return;
+    let ctx = state.ctx;
+
+    if (state.weatherTier >= 1) {
+        // Tier 1: random horizontal glitch lines
+        ctx.save();
+        for (let i = 0; i < 3; i++) {
+            let y = Math.random() * CANVAS_H;
+            let w = 30 + Math.random() * 80;
+            let x = Math.random() * CANVAS_W;
+            ctx.fillStyle = `rgba(0, 255, 200, ${0.03 + Math.random() * 0.04})`;
+            ctx.fillRect(x, y, w, 1 + Math.random() * 2);
+        }
+        ctx.restore();
+    }
+
+    if (state.weatherTier >= 2) {
+        // Tier 2: red pulsing edges
+        let pulse = Math.sin(state.animFrame * 0.05) * 0.5 + 0.5;
+        let edgeAlpha = 0.08 * pulse;
+        ctx.save();
+        let grad = ctx.createLinearGradient(0, 0, 40, 0);
+        grad.addColorStop(0, `rgba(255, 0, 50, ${edgeAlpha})`);
+        grad.addColorStop(1, 'rgba(255, 0, 50, 0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 40, CANVAS_H);
+        let grad2 = ctx.createLinearGradient(CANVAS_W, 0, CANVAS_W - 40, 0);
+        grad2.addColorStop(0, `rgba(255, 0, 50, ${edgeAlpha})`);
+        grad2.addColorStop(1, 'rgba(255, 0, 50, 0)');
+        ctx.fillStyle = grad2;
+        ctx.fillRect(CANVAS_W - 40, 0, 40, CANVAS_H);
+        ctx.restore();
+    }
+
+    if (state.weatherTier >= 3) {
+        // Tier 3: dark vignette overlay
+        ctx.save();
+        let grd = ctx.createRadialGradient(CANVAS_W / 2, CANVAS_H / 2, CANVAS_W * 0.3, CANVAS_W / 2, CANVAS_H / 2, CANVAS_W * 0.7);
+        grd.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        grd.addColorStop(1, 'rgba(0, 0, 0, 0.4)');
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.restore();
+    }
+}
 
 export function drawHoverPreview() {
     let ctx = state.ctx;

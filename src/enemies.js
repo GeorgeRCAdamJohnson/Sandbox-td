@@ -2,7 +2,7 @@
 // VECTRON TD - Enemy Logic
 // ============================================
 
-import { ENEMY_TRAITS } from './constants.js';
+import { ENEMY_TRAITS, GRID_COLS, GRID_ROWS } from './constants.js';
 import { state } from './state.js';
 
 // Get damage multiplier for a tower type vs enemy trait
@@ -136,6 +136,7 @@ export function getRandomTrait(level, isEscort) {
     if (level >= 8) available.push('camo');
     if (level >= 10) available.push('regen');
     if (level >= 14) available.push('phase');
+    if (level >= 31) available.push('mazeBuilder');
 
     if (level > 15) {
         available = available.filter(t => t !== 'normal');
@@ -155,6 +156,7 @@ export function getBossTrait(level) {
     if (level <= 10) return Math.random() < 0.5 ? 'regen' : 'armored';
     if (level <= 15) return Math.random() < 0.5 ? 'phase' : 'shielded';
     let bossTraits = ['regen', 'phase', 'shielded'];
+    if (level > 30) bossTraits.push('mazeBuilder');
     return bossTraits[Math.floor(Math.random() * bossTraits.length)];
 }
 
@@ -188,6 +190,7 @@ export function spawnEnemy() {
         regenRate: traitDef.regenRate || 0,
         phaseChance: traitDef.phaseChance || 0,
         traitName: traitDef.name,
+        buildTimer: 0,
     });
 
     state.groupSpawned++;
@@ -199,6 +202,30 @@ export function spawnEnemy() {
 
 export function updateEnemy(e) {
     if (e.pathIdx >= state.path.length - 1) { e.reachedEnd = true; return; }
+
+    // Maze Builder (Architect) ability: place blocks every 120 frames
+    if (e.trait === 'mazeBuilder') {
+        e.buildTimer++;
+        if (e.buildTimer >= 120) {
+            e.buildTimer = 0;
+            // Pick a random adjacent empty cell and block it
+            let cellCol = Math.floor(e.x / 40);
+            let cellRow = Math.floor(e.y / 40);
+            let dirs = [{dc:-1,dr:0},{dc:1,dr:0},{dc:0,dr:-1},{dc:0,dr:1}];
+            let candidates = [];
+            for (let d of dirs) {
+                let nc = cellCol + d.dc;
+                let nr = cellRow + d.dr;
+                if (nc >= 0 && nc < GRID_COLS && nr >= 0 && nr < GRID_ROWS && state.grid[nr][nc] === 0) {
+                    candidates.push({x: nc, y: nr});
+                }
+            }
+            if (candidates.length > 0) {
+                let pick = candidates[Math.floor(Math.random() * candidates.length)];
+                state.grid[pick.y][pick.x] = 1;
+            }
+        }
+    }
 
     let target = state.path[e.pathIdx + 1];
     let dx = target.x - e.x;

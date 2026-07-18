@@ -83,6 +83,12 @@ export function startLevel(lvl) {
     // Reset level stats (Feature 10)
     resetLevelStats();
 
+    // Set weather tier based on level
+    if (lvl <= 10) state.weatherTier = 0;
+    else if (lvl <= 20) state.weatherTier = 1;
+    else if (lvl <= 30) state.weatherTier = 2;
+    else state.weatherTier = 3;
+
     generateMap();
     updateHUD();
     updateSuperButtons();

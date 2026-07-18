@@ -187,4 +187,12 @@ export const ENEMY_TRAITS = {
         weak: { purple: 1.6, red: 1.3 },
         phaseChance: 0.4,
     },
+    mazeBuilder: {
+        name: 'Architect',
+        color: '#ff00ff',
+        hpMult: 4, speedMult: 0.4, countMult: 0.3, rewardMult: 5,
+        shape: 'hexagon',
+        resist: { green: 0.6, blue: 0.6 },
+        weak: { purple: 1.5, red: 1.3 },
+    },
 };

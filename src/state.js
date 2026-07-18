@@ -104,4 +104,15 @@ export const state = {
         moneyEarned: 0,
         livesLostThisLevel: 0,
     },
+
+    // === Screen Shake ===
+    screenShake: 0,
+
+    // === Kill Combo Counter ===
+    comboCount: 0,
+    comboTimer: 0,
+    maxCombo: 0,
+
+    // === Weather Effects ===
+    weatherTier: 0,
 };

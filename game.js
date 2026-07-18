@@ -192,6 +192,45 @@ function update() {
             // Kill counter: find nearest tower to credit (Feature 7)
             creditKillToNearestTower(enemy);
             spawnParticles(enemy.x, enemy.y, enemy.color, 10);
+
+            // Screen shake on boss death
+            if (enemy.size > 14 || (state.currentWaveConfig && state.currentWaveConfig.groups.some(g => g.hpMult > 5))) {
+                state.screenShake = 10;
+            }
+
+            // Enemy death shatter - fragment particles
+            let fragCount = 4 + Math.floor(Math.random() * 3);
+            for (let f = 0; f < fragCount; f++) {
+                let a = Math.random() * Math.PI * 2;
+                let spd = 1.5 + Math.random() * 2.5;
+                let life = 20 + Math.floor(Math.random() * 15);
+                state.particles.push({
+                    x: enemy.x, y: enemy.y,
+                    vx: Math.cos(a) * spd,
+                    vy: Math.sin(a) * spd,
+                    color: enemy.color,
+                    life: life, maxLife: life,
+                    size: 2 + Math.random() * 2,
+                    type: 'fragment',
+                    rotation: Math.random() * Math.PI * 2,
+                    rotSpeed: (Math.random() - 0.5) * 0.3,
+                });
+            }
+
+            // Kill combo counter
+            state.comboCount++;
+            state.comboTimer = 60;
+            if (state.comboCount > state.maxCombo) state.maxCombo = state.comboCount;
+            if (state.comboCount === 10) {
+                state.floatingTexts.push({ x: CANVAS_W / 2, y: CANVAS_H / 3, text: '10x COMBO!', color: '#ffcc00', life: 50, maxLife: 50, vy: -0.5 });
+            } else if (state.comboCount === 25) {
+                state.floatingTexts.push({ x: CANVAS_W / 2, y: CANVAS_H / 3, text: '25x MEGA COMBO!', color: '#ff8800', life: 60, maxLife: 60, vy: -0.5 });
+            } else if (state.comboCount === 50) {
+                state.floatingTexts.push({ x: CANVAS_W / 2, y: CANVAS_H / 3, text: '50x ULTRA COMBO!', color: '#ff3355', life: 70, maxLife: 70, vy: -0.5 });
+            } else if (state.comboCount === 100) {
+                state.floatingTexts.push({ x: CANVAS_W / 2, y: CANVAS_H / 3, text: '100x GODLIKE!', color: '#ff00ff', life: 80, maxLife: 80, vy: -0.5 });
+            }
+
             state.floatingTexts.push({
                 x: enemy.x, y: enemy.y,
                 text: '+$' + enemy.reward,
@@ -249,6 +288,16 @@ function update() {
         state.damageNumbers[i].y += state.damageNumbers[i].vy;
         state.damageNumbers[i].life--;
         if (state.damageNumbers[i].life <= 0) state.damageNumbers.splice(i, 1);
+    }
+
+    // Screen shake decay
+    if (state.screenShake > 0) state.screenShake--;
+
+    // Combo timer decay
+    if (state.comboTimer > 0) {
+        state.comboTimer--;
+    } else {
+        state.comboCount = 0;
     }
 }
 

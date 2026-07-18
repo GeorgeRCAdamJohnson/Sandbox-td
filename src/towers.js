@@ -97,6 +97,8 @@ export function updateTower(tower) {
         tower.beamTimer--;
         if (tower.beamTimer <= 0) tower.beamTarget = null;
     }
+    // Tower fire flash decay
+    if (tower.fireFlash > 0) tower.fireFlash--;
 }
 
 
@@ -127,6 +129,7 @@ export function fireTower(tower, target) {
     let stats = getTowerStats(tower.type, tower.isSuper, tower);
     let def = tower.isSuper ? SUPER_DEFS[tower.type] : TOWER_DEFS[tower.type];
     let synergies = getTowerSynergies(tower);
+    tower.fireFlash = 8;
 
     if (stats.projType === 'beam') {
         let mult = getDamageMultiplier(tower.type, target.trait || 'normal');
@@ -222,6 +225,7 @@ export function updateProjectile(p) {
             }
             spawnParticles(p.x, p.y, p.color, 12);
             playSound('explosion');
+            state.screenShake = 5;
             p.dead = true;
         }
     } else {
