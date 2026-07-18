@@ -172,9 +172,77 @@ export function renderUpgradeScreen() {
         html += `</div>`;
     });
 
-    html += `</div>
-        <button class="continue-btn" onclick="window._gameUI.continueToNextLevel()">CONTINUE TO LEVEL ${state.currentLevel + 1}</button>`;
+    // === BONUS SPENDING OPTIONS (when tower upgrades are mostly/all maxed) ===
+    let allMaxed = ['green','red','purple','blue'].every(t => 
+        state.towerUpgrades[t].damage >= 5 && state.towerUpgrades[t].range >= 5 && state.towerUpgrades[t].speed >= 5
+    );
+
+    html += `</div>`; // close upgrade-grid
+
+    // Always show bonus options if player has points (useful even before full max)
+    if (state.upgradePoints > 0) {
+        html += `<div class="bonus-options">
+            <h3 style="color:#ffcc00;font-size:11px;letter-spacing:2px;margin:12px 0 8px;text-align:center;">BONUS OPTIONS</h3>
+            <div class="bonus-grid">
+                <button class="bonus-btn" onclick="window._gameUI.buyBonusCash()" ${state.upgradePoints < 1 ? 'disabled' : ''}>
+                    <span class="bonus-icon">💰</span>
+                    <span>+$2,000</span>
+                    <span class="bonus-cost">1 pt</span>
+                </button>
+                <button class="bonus-btn" onclick="window._gameUI.buyBonusLife()" ${state.upgradePoints < 1 ? 'disabled' : ''}>
+                    <span class="bonus-icon">❤</span>
+                    <span>+1 Life</span>
+                    <span class="bonus-cost">1 pt</span>
+                </button>
+                <button class="bonus-btn" onclick="window._gameUI.buyMapReroll()" ${state.upgradePoints < 1 || state.mapRerolls >= 5 ? 'disabled' : ''}>
+                    <span class="bonus-icon">🗺</span>
+                    <span>New Map</span>
+                    <span class="bonus-cost">1 pt (${state.mapRerolls || 0}/5)</span>
+                </button>
+                <button class="bonus-btn" onclick="window._gameUI.buyDamageBoost()" ${state.upgradePoints < 1 || state.nextLevelDmgBoost ? 'disabled' : ''}>
+                    <span class="bonus-icon">⚡</span>
+                    <span>+30% DMG</span>
+                    <span class="bonus-cost">1 pt${state.nextLevelDmgBoost ? ' (active)' : ''}</span>
+                </button>
+            </div>
+        </div>`;
+    }
+
+    html += `<button class="continue-btn" onclick="window._gameUI.continueToNextLevel()">CONTINUE TO LEVEL ${state.currentLevel + 1}</button>`;
     content.innerHTML = html;
+}
+
+// Bonus purchase functions
+export function buyBonusCash() {
+    if (state.upgradePoints < 1) return;
+    state.upgradePoints--;
+    state.money += 2000;
+    renderUpgradeScreen();
+}
+
+export function buyBonusLife() {
+    if (state.upgradePoints < 1) return;
+    state.upgradePoints--;
+    state.lives += 1;
+    renderUpgradeScreen();
+}
+
+export function buyMapReroll() {
+    if (state.upgradePoints < 1) return;
+    if ((state.mapRerolls || 0) >= 5) return;
+    state.upgradePoints--;
+    state.mapRerolls = (state.mapRerolls || 0) + 1;
+    // Will regenerate map when level starts
+    state.pendingMapReroll = true;
+    renderUpgradeScreen();
+}
+
+export function buyDamageBoost() {
+    if (state.upgradePoints < 1) return;
+    if (state.nextLevelDmgBoost) return;
+    state.upgradePoints--;
+    state.nextLevelDmgBoost = true;
+    renderUpgradeScreen();
 }
 
 export function buyUpgrade(type, stat) {

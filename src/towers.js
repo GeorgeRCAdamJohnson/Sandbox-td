@@ -56,6 +56,11 @@ export function getTowerStats(type, isSuper, tower) {
     let range = base.range * (1 + upg.range * 0.1);
     let fireRate = Math.max(4, base.fireRate * (1 - upg.speed * 0.08));
 
+    // Apply next-level damage boost (from bonus purchase)
+    if (state.nextLevelDmgBoost) {
+        damage *= 1.3;
+    }
+
     // Apply kill counter bonuses (Feature 7)
     if (tower && tower.kills !== undefined) {
         let kb = getKillBonus(tower.kills);

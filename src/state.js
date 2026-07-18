@@ -120,4 +120,9 @@ export const state = {
     fpsCheckTime: 0,
     currentFPS: 60,
     maxParticles: 200,
+
+    // === Bonus spending ===
+    mapRerolls: 0,
+    pendingMapReroll: false,
+    nextLevelDmgBoost: false,
 };

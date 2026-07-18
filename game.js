@@ -9,7 +9,7 @@ import { spawnEnemy, updateEnemy } from './src/enemies.js';
 import { updateTower, updateProjectile, spawnParticles } from './src/towers.js';
 import { render } from './src/renderer.js';
 import { setupInput } from './src/input.js';
-import { selectTower, showTowerInfo, setTargetMode, sellTower, setSpeed, updateHUD, updateSuperButtons, showUpgradeScreen, renderUpgradeScreen, buyUpgrade, unlockSuper, continueToNextLevel } from './src/ui.js';
+import { selectTower, showTowerInfo, setTargetMode, sellTower, setSpeed, updateHUD, updateSuperButtons, showUpgradeScreen, renderUpgradeScreen, buyUpgrade, unlockSuper, continueToNextLevel, buyBonusCash, buyBonusLife, buyMapReroll, buyDamageBoost } from './src/ui.js';
 import { levelComplete, startLevel, sendNextWave, gameOver, victory, startEndlessMode, updateWavePreview } from './src/levels.js';
 import { startPathExtend, cancelPathExtend } from './src/map.js';
 import { deselectAll } from './src/input.js';
@@ -31,6 +31,10 @@ window._gameUI = {
     toggleMusic,
     toggleSfx,
     startEndlessMode,
+    buyBonusCash,
+    buyBonusLife,
+    buyMapReroll,
+    buyDamageBoost,
 };
 
 // Also expose top-level functions that HTML onclick attributes reference directly

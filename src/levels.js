@@ -90,6 +90,21 @@ export function startLevel(lvl) {
     else state.weatherTier = 3;
 
     generateMap();
+
+    // Apply pending map reroll from bonus purchase
+    if (state.pendingMapReroll) {
+        state.pendingMapReroll = false;
+        generateMap();
+    }
+
+    // Reset map rerolls for new level
+    state.mapRerolls = 0;
+
+    // Damage boost expires after one level
+    // (it was applied in getTowerStats while active, will be cleared at NEXT level start)
+    if (state.currentLevel > 1) {
+        state.nextLevelDmgBoost = false;
+    }
     updateHUD();
     updateSuperButtons();
     if (Object.values(state.superWeaponsUnlocked).some(v => v)) {
