@@ -23,63 +23,17 @@ export function generateMap() {
     }
     state.pathCells = [];
 
-    // Simple non-crossing snake path generator
-    // Strategy: go right in lanes, connecting them with short verticals
-    // This GUARANTEES no crossing because each lane is at a unique Y
-    let numLanes = 3 + Math.floor(Math.random() * 2); // 3-4 lanes
-    let laneYs = [];
+    // Pick a random map style
+    let style = Math.floor(Math.random() * 5);
+    let cellPath;
 
-    // Distribute lanes evenly across grid height
-    for (let i = 0; i < numLanes; i++) {
-        let y = Math.floor((i + 0.5) * (GRID_ROWS / numLanes));
-        y = Math.max(1, Math.min(GRID_ROWS - 2, y + Math.floor(Math.random() * 3) - 1));
-        laneYs.push(y);
-    }
-
-    let cellPath = [];
-
-    for (let lane = 0; lane < numLanes; lane++) {
-        let y = laneYs[lane];
-        let goingRight = (lane % 2 === 0);
-
-        if (goingRight) {
-            // Horizontal lane going right
-            let startX = (lane === 0) ? 0 : 1;
-            let endX = (lane === numLanes - 1) ? GRID_COLS - 1 : GRID_COLS - 2;
-            for (let x = startX; x <= endX; x++) {
-                cellPath.push({ x, y });
-            }
-        } else {
-            // Horizontal lane going left
-            let startX = (lane === numLanes - 1) ? GRID_COLS - 1 : GRID_COLS - 2;
-            let endX = 1;
-            for (let x = startX; x >= endX; x--) {
-                cellPath.push({ x, y });
-            }
-        }
-
-        // Connect to next lane with vertical segment
-        if (lane < numLanes - 1) {
-            let connectX = goingRight ? (GRID_COLS - 2) : 1;
-            let nextY = laneYs[lane + 1];
-            let stepY = nextY > y ? 1 : -1;
-            let cy = y;
-            while (cy !== nextY) {
-                cy += stepY;
-                cellPath.push({ x: connectX, y: cy });
-            }
-        }
-    }
-
-    // Ensure path ends at right edge
-    let lastCell = cellPath[cellPath.length - 1];
-    if (lastCell.x !== GRID_COLS - 1) {
-        let stepX = GRID_COLS - 1 > lastCell.x ? 1 : -1;
-        let x = lastCell.x;
-        while (x !== GRID_COLS - 1) {
-            x += stepX;
-            cellPath.push({ x, y: lastCell.y });
-        }
+    switch (style) {
+        case 0: cellPath = generateSnakePath(); break;
+        case 1: cellPath = generateSpiralPath(); break;
+        case 2: cellPath = generateZigzagPath(); break;
+        case 3: cellPath = generateStaircasePath(); break;
+        case 4: cellPath = generateUTurnPath(); break;
+        default: cellPath = generateSnakePath(); break;
     }
 
     // Mark grid cells as path
@@ -93,6 +47,186 @@ export function generateMap() {
     for (let p of cellPath) {
         state.path.push({
             x: p.x * CELL_SIZE + CELL_SIZE / 2,
+            y: p.y * CELL_SIZE + CELL_SIZE / 2
+        });
+    }
+
+    state.splitPath = null;
+}
+
+// Style 0: Classic snake (horizontal lanes, alternating direction)
+function generateSnakePath() {
+    let numLanes = 2 + Math.floor(Math.random() * 3); // 2-4 lanes
+    let laneYs = [];
+    for (let i = 0; i < numLanes; i++) {
+        let y = Math.floor((i + 0.5) * (GRID_ROWS / numLanes));
+        y = Math.max(1, Math.min(GRID_ROWS - 2, y + Math.floor(Math.random() * 3) - 1));
+        laneYs.push(y);
+    }
+
+    let cellPath = [];
+    for (let lane = 0; lane < numLanes; lane++) {
+        let y = laneYs[lane];
+        let goingRight = (lane % 2 === 0);
+
+        // Randomize lane start/end (don't always go full width)
+        let indent = Math.floor(Math.random() * 3) + 1;
+        let startX, endX;
+        if (goingRight) {
+            startX = (lane === 0) ? 0 : indent;
+            endX = (lane === numLanes - 1) ? GRID_COLS - 1 : GRID_COLS - 1 - indent;
+            for (let x = startX; x <= endX; x++) cellPath.push({ x, y });
+        } else {
+            startX = GRID_COLS - 1 - indent;
+            endX = (lane === numLanes - 1) ? GRID_COLS - 1 : indent;
+            for (let x = startX; x >= endX; x--) cellPath.push({ x, y });
+        }
+
+        // Connect to next lane
+        if (lane < numLanes - 1) {
+            let connectX = goingRight ? (GRID_COLS - 1 - indent) : indent;
+            let nextY = laneYs[lane + 1];
+            let stepY = nextY > y ? 1 : -1;
+            let cy = y;
+            while (cy !== nextY) { cy += stepY; cellPath.push({ x: connectX, y: cy }); }
+        }
+    }
+    ensureEndsAtEdge(cellPath);
+    return cellPath;
+}
+
+// Style 1: Spiral inward
+function generateSpiralPath() {
+    let cellPath = [];
+    let top = 1, bottom = GRID_ROWS - 2, left = 0, right = GRID_COLS - 1;
+    let dir = 0; // 0=right, 1=down, 2=left, 3=up
+
+    while (top <= bottom && left <= right) {
+        if (dir === 0) {
+            for (let x = left; x <= right; x++) cellPath.push({ x, y: top });
+            top += 2 + Math.floor(Math.random() * 2);
+        } else if (dir === 1) {
+            for (let y = top; y <= bottom; y++) cellPath.push({ x: right, y });
+            right -= 3 + Math.floor(Math.random() * 2);
+        } else if (dir === 2) {
+            for (let x = right; x >= left; x--) cellPath.push({ x, y: bottom });
+            bottom -= 2 + Math.floor(Math.random() * 2);
+        } else {
+            for (let y = bottom; y >= top; y--) cellPath.push({ x: left, y });
+            left += 3 + Math.floor(Math.random() * 2);
+        }
+        dir = (dir + 1) % 4;
+    }
+    return cellPath;
+}
+
+// Style 2: Diagonal zigzag (staircase pattern with varying widths)
+function generateZigzagPath() {
+    let cellPath = [];
+    let y = 1 + Math.floor(Math.random() * 3);
+    let goingDown = true;
+
+    for (let x = 0; x < GRID_COLS; x++) {
+        cellPath.push({ x, y });
+
+        // Every 2-4 columns, change Y direction
+        if (x % (2 + Math.floor(Math.random() * 3)) === 0 && x > 0) {
+            let steps = 2 + Math.floor(Math.random() * 3);
+            let stepDir = goingDown ? 1 : -1;
+            for (let s = 0; s < steps; s++) {
+                let newY = y + stepDir;
+                if (newY < 1 || newY > GRID_ROWS - 2) { goingDown = !goingDown; break; }
+                y = newY;
+                cellPath.push({ x, y });
+            }
+            if (y >= GRID_ROWS - 3) goingDown = false;
+            if (y <= 2) goingDown = true;
+        }
+    }
+    return cellPath;
+}
+
+// Style 3: Staircase (alternating horizontal and vertical chunks)
+function generateStaircasePath() {
+    let cellPath = [];
+    let cx = 0, cy = 1 + Math.floor(Math.random() * (GRID_ROWS - 3));
+
+    while (cx < GRID_COLS - 1) {
+        // Horizontal run (3-6 cells)
+        let runLen = 3 + Math.floor(Math.random() * 4);
+        for (let i = 0; i < runLen && cx < GRID_COLS; i++) {
+            cellPath.push({ x: cx, y: cy });
+            cx++;
+        }
+        if (cx >= GRID_COLS) break;
+
+        // Vertical step (2-4 cells, random direction)
+        let stepLen = 2 + Math.floor(Math.random() * 3);
+        let stepDir = (cy < GRID_ROWS / 2) ? 1 : -1;
+        if (Math.random() < 0.4) stepDir *= -1; // Sometimes go the other way
+
+        for (let i = 0; i < stepLen; i++) {
+            let newY = cy + stepDir;
+            if (newY < 1 || newY > GRID_ROWS - 2) break;
+            cy = newY;
+            cellPath.push({ x: cx - 1, y: cy });
+        }
+    }
+    ensureEndsAtEdge(cellPath);
+    return cellPath;
+}
+
+// Style 4: U-turns (goes right, U-turns back, goes right again)
+function generateUTurnPath() {
+    let cellPath = [];
+    let y = 2 + Math.floor(Math.random() * 3);
+    let sections = 2 + Math.floor(Math.random() * 2); // 2-3 U-turns
+    let sectionWidth = Math.floor((GRID_COLS - 2) / sections);
+
+    let cx = 0;
+    for (let s = 0; s < sections; s++) {
+        let endX = Math.min(GRID_COLS - 1, cx + sectionWidth);
+        let bottomY = GRID_ROWS - 2 - Math.floor(Math.random() * 2);
+        let topY = 1 + Math.floor(Math.random() * 2);
+        let targetY = (s % 2 === 0) ? bottomY : topY;
+
+        // Go right
+        for (let x = cx; x <= endX; x++) cellPath.push({ x, y });
+
+        // Go down/up
+        let stepY = targetY > y ? 1 : -1;
+        while (y !== targetY) { y += stepY; cellPath.push({ x: endX, y }); }
+
+        // Go right a bit more for the return
+        let returnX = Math.min(GRID_COLS - 1, endX + 2);
+        for (let x = endX + 1; x <= returnX; x++) cellPath.push({ x, y });
+
+        // Go back up/down for next section
+        let nextY = (s % 2 === 0) ? topY : bottomY;
+        if (s < sections - 1) {
+            stepY = nextY > y ? 1 : -1;
+            while (y !== nextY) { y += stepY; cellPath.push({ x: returnX, y }); }
+        }
+        cx = returnX + 1;
+    }
+
+    // Finish to right edge
+    let last = cellPath[cellPath.length - 1];
+    for (let x = last.x + 1; x < GRID_COLS; x++) cellPath.push({ x, y: last.y });
+    ensureEndsAtEdge(cellPath);
+    return cellPath;
+}
+
+// Helper: ensure path ends at right edge of grid
+function ensureEndsAtEdge(cellPath) {
+    if (cellPath.length === 0) return;
+    let last = cellPath[cellPath.length - 1];
+    if (last.x < GRID_COLS - 1) {
+        for (let x = last.x + 1; x < GRID_COLS; x++) {
+            cellPath.push({ x, y: last.y });
+        }
+    }
+}
             y: p.y * CELL_SIZE + CELL_SIZE / 2
         });
     }
