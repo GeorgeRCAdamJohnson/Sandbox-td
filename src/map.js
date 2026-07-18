@@ -24,17 +24,38 @@ export function generateMap() {
     state.pathCells = [];
 
     // Pick a random map style
-    let style = Math.floor(Math.random() * 5);
+    let style = Math.floor(Math.random() * 4);
     let cellPath;
 
     switch (style) {
         case 0: cellPath = generateSnakePath(); break;
-        case 1: cellPath = generateSpiralPath(); break;
-        case 2: cellPath = generateZigzagPath(); break;
-        case 3: cellPath = generateStaircasePath(); break;
-        case 4: cellPath = generateUTurnPath(); break;
+        case 1: cellPath = generateZigzagPath(); break;
+        case 2: cellPath = generateStaircasePath(); break;
+        case 3: cellPath = generateUTurnPath(); break;
         default: cellPath = generateSnakePath(); break;
     }
+
+    // Validate: ensure every consecutive pair of cells is adjacent
+    // If not, insert bridging cells
+    let validated = [cellPath[0]];
+    for (let i = 1; i < cellPath.length; i++) {
+        let prev = validated[validated.length - 1];
+        let curr = cellPath[i];
+        let dx = curr.x - prev.x;
+        let dy = curr.y - prev.y;
+
+        if (Math.abs(dx) + Math.abs(dy) <= 1) {
+            validated.push(curr);
+        } else {
+            // Bridge: horizontal first then vertical
+            let cx = prev.x, cy = prev.y;
+            let sx = dx > 0 ? 1 : (dx < 0 ? -1 : 0);
+            let sy = dy > 0 ? 1 : (dy < 0 ? -1 : 0);
+            while (cx !== curr.x) { cx += sx; validated.push({ x: cx, y: cy }); }
+            while (cy !== curr.y) { cy += sy; validated.push({ x: cx, y: cy }); }
+        }
+    }
+    cellPath = validated;
 
     // Mark grid cells as path
     for (let p of cellPath) {
@@ -95,32 +116,7 @@ function generateSnakePath() {
     return cellPath;
 }
 
-// Style 1: Spiral inward
-function generateSpiralPath() {
-    let cellPath = [];
-    let top = 1, bottom = GRID_ROWS - 2, left = 0, right = GRID_COLS - 1;
-    let dir = 0; // 0=right, 1=down, 2=left, 3=up
-
-    while (top <= bottom && left <= right) {
-        if (dir === 0) {
-            for (let x = left; x <= right; x++) cellPath.push({ x, y: top });
-            top += 2 + Math.floor(Math.random() * 2);
-        } else if (dir === 1) {
-            for (let y = top; y <= bottom; y++) cellPath.push({ x: right, y });
-            right -= 3 + Math.floor(Math.random() * 2);
-        } else if (dir === 2) {
-            for (let x = right; x >= left; x--) cellPath.push({ x, y: bottom });
-            bottom -= 2 + Math.floor(Math.random() * 2);
-        } else {
-            for (let y = bottom; y >= top; y--) cellPath.push({ x: left, y });
-            left += 3 + Math.floor(Math.random() * 2);
-        }
-        dir = (dir + 1) % 4;
-    }
-    return cellPath;
-}
-
-// Style 2: Diagonal zigzag (staircase pattern with varying widths)
+// Style 1: Diagonal zigzag (staircase pattern with varying widths)
 function generateZigzagPath() {
     let cellPath = [];
     let y = 1 + Math.floor(Math.random() * 3);
