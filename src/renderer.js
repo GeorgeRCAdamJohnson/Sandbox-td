@@ -14,7 +14,7 @@ function glow(ctx, blur, color) {
     }
 }
 function noGlow(ctx) {
-    noGlow(ctx);
+    ctx.shadowBlur = 0;
 }
 
 export function render() {
