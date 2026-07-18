@@ -227,12 +227,6 @@ function ensureEndsAtEdge(cellPath) {
         }
     }
 }
-            y: p.y * CELL_SIZE + CELL_SIZE / 2
-        });
-    }
-
-    state.splitPath = null;
-}
 
 // === PATH EXTENSION SYSTEM ===
 // Simplified: place 2 cells at a time, only off path corners, can't touch existing path
