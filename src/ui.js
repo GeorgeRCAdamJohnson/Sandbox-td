@@ -263,5 +263,11 @@ export function unlockSuper(type) {
 export function continueToNextLevel() {
     document.getElementById('upgradeScreen').style.display = 'none';
     // Use late-bound import to avoid circular dependency with levels.js
-    import('./levels.js').then(mod => mod.startLevel(state.currentLevel + 1));
+    import('./levels.js').then(mod => {
+        mod.startLevel(state.currentLevel + 1);
+    }).catch(err => {
+        console.error('Failed to load levels:', err);
+        // Fallback: reload page to continue
+        location.reload();
+    });
 }
