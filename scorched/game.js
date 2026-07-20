@@ -231,11 +231,6 @@ function update() {
   } else if (state.phase === GamePhase.AIMING) {
     updateExplosions();
     updateParticles();
-    // Keep mobile sliders in sync with keyboard changes
-    const player = getCurrentPlayer();
-    if (player && !player.isAI) {
-      syncMobileSliders(player);
-    }
   }
 }
 
@@ -286,6 +281,7 @@ window.startGame = () => {
 
 // Fire button for mobile
 window.fireMobile = () => {
+  console.log('FIRE pressed, phase:', state.phase, 'player:', getCurrentPlayer()?.name);
   fireWeapon();
 };
 
@@ -347,3 +343,37 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
+
+// Direct event listeners for mobile controls (more reliable than onclick attributes)
+document.addEventListener('DOMContentLoaded', () => {
+  const angleSlider = document.getElementById('angle-slider');
+  const powerSlider = document.getElementById('power-slider');
+  const fireBtn = document.querySelector('.fire-btn');
+
+  if (angleSlider) {
+    angleSlider.addEventListener('input', (e) => {
+      const player = getCurrentPlayer();
+      if (player && !player.isAI && state.phase === GamePhase.AIMING) {
+        player.angle = parseInt(e.target.value);
+        const el = document.getElementById('angle-val');
+        if (el) el.textContent = e.target.value + '°';
+      }
+    });
+  }
+
+  if (powerSlider) {
+    powerSlider.addEventListener('input', (e) => {
+      const player = getCurrentPlayer();
+      if (player && !player.isAI && state.phase === GamePhase.AIMING) {
+        player.power = parseInt(e.target.value);
+        const el = document.getElementById('power-val');
+        if (el) el.textContent = e.target.value;
+      }
+    });
+  }
+
+  if (fireBtn) {
+    fireBtn.addEventListener('click', () => { fireWeapon(); });
+    fireBtn.addEventListener('touchend', (e) => { e.preventDefault(); fireWeapon(); });
+  }
+});
