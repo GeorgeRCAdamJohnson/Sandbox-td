@@ -147,6 +147,12 @@ function fireWeapon() {
 
   if (!canFire(player)) return;
 
+  // Force-read mobile slider values before firing (in case events didn't propagate)
+  const angleSlider = document.getElementById('angle-slider');
+  const powerSlider = document.getElementById('power-slider');
+  if (angleSlider) player.angle = parseInt(angleSlider.value);
+  if (powerSlider) player.power = parseInt(powerSlider.value);
+
   playFire();
   consumeAmmo(player);
 
@@ -154,6 +160,17 @@ function fireWeapon() {
   const proj = createProjectile(player, weapon);
   state.projectiles.push(proj);
   state.phase = GamePhase.FIRING;
+
+  // Visual feedback: add particle burst at launch point
+  for (let i = 0; i < 5; i++) {
+    state.particles.push({
+      x: proj.x, y: proj.y,
+      vx: (Math.random() - 0.5) * 4,
+      vy: -Math.random() * 3,
+      life: 0.5,
+      color: player.color
+    });
+  }
 }
 
 function endTurn() {
