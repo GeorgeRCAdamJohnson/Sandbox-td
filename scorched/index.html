@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Vectron Scorched</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #050510;
+      color: #ffffff;
+      font-family: 'Courier New', monospace;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100%;
+      max-width: 1000px;
+      aspect-ratio: 1000 / 600;
+    }
+
+    #game-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border: 1px solid #00ffff33;
+      border-radius: 4px;
+    }
+
+    /* Menu Overlay */
+    #menu-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 5, 16, 0.92);
+      z-index: 10;
+    }
+
+    .menu-title {
+      font-size: 2.5em;
+      color: #00ffff;
+      text-shadow: 0 0 20px #00ffff88;
+      margin-bottom: 8px;
+    }
+
+    .menu-subtitle {
+      font-size: 1em;
+      color: #ff00ff;
+      margin-bottom: 30px;
+    }
+
+    .menu-options {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 300px;
+    }
+
+    .menu-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .menu-row label {
+      color: #aaa;
+      font-size: 0.85em;
+    }
+
+    .menu-row select, .menu-row input {
+      background: #111;
+      color: #00ffff;
+      border: 1px solid #00ffff44;
+      padding: 4px 8px;
+      font-family: monospace;
+      font-size: 0.85em;
+      border-radius: 3px;
+      width: 80px;
+      text-align: center;
+    }
+
+    .menu-row select:focus, .menu-row input:focus {
+      outline: none;
+      border-color: #00ffff;
+    }
+
+    .start-btn {
+      margin-top: 24px;
+      padding: 12px 36px;
+      font-size: 1.1em;
+      font-family: monospace;
+      background: transparent;
+      color: #00ff66;
+      border: 2px solid #00ff66;
+      border-radius: 4px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      transition: all 0.2s;
+    }
+
+    .start-btn:hover {
+      background: #00ff6622;
+      box-shadow: 0 0 15px #00ff6644;
+    }
+
+    .menu-controls {
+      margin-top: 30px;
+      font-size: 0.7em;
+      color: #555;
+      text-align: center;
+      line-height: 1.8;
+    }
+
+    /* Shop Overlay */
+    #shop-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 5, 16, 0.95);
+      z-index: 10;
+      overflow-y: auto;
+    }
+
+    .shop-content {
+      width: 90%;
+      max-width: 600px;
+      text-align: center;
+    }
+
+    .shop-content h2 {
+      font-size: 1.4em;
+      margin-bottom: 10px;
+    }
+
+    .shop-money {
+      color: #00ff66;
+      font-size: 1.1em;
+      margin-bottom: 16px;
+    }
+
+    .shop-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .shop-item {
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 8px;
+      text-align: left;
+      font-size: 0.75em;
+    }
+
+    .shop-name {
+      display: block;
+      color: #ffff00;
+      margin-bottom: 2px;
+    }
+
+    .shop-cost {
+      display: block;
+      color: #888;
+      margin-bottom: 2px;
+    }
+
+    .shop-owned {
+      display: block;
+      color: #00ccff;
+      margin-bottom: 4px;
+    }
+
+    .shop-buttons {
+      display: flex;
+      gap: 6px;
+    }
+
+    .shop-buttons button {
+      flex: 1;
+      padding: 4px;
+      font-family: monospace;
+      font-size: 0.9em;
+      background: #222;
+      color: #00ff66;
+      border: 1px solid #00ff6644;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .shop-buttons button:disabled {
+      color: #444;
+      border-color: #333;
+      cursor: default;
+    }
+
+    .shop-buttons button:not(:disabled):hover {
+      background: #00ff6622;
+    }
+
+    .shop-done-btn {
+      padding: 10px 30px;
+      font-size: 1em;
+      font-family: monospace;
+      background: transparent;
+      color: #00ffff;
+      border: 2px solid #00ffff;
+      border-radius: 4px;
+      cursor: pointer;
+      text-transform: uppercase;
+      margin-top: 8px;
+    }
+
+    .shop-done-btn:hover {
+      background: #00ffff22;
+    }
+
+    /* Mobile fire button */
+    #mobile-controls {
+      display: none;
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 5;
+      gap: 10px;
+    }
+
+    .mobile-btn {
+      padding: 10px 20px;
+      font-family: monospace;
+      font-size: 0.8em;
+      background: rgba(0, 0, 0, 0.7);
+      color: #ff00ff;
+      border: 1px solid #ff00ff44;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    @media (max-width: 768px) {
+      #mobile-controls {
+        display: flex;
+      }
+      .menu-title {
+        font-size: 1.5em;
+      }
+      .shop-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (pointer: coarse) {
+      #mobile-controls {
+        display: flex;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Menu Overlay -->
+    <div id="menu-overlay">
+      <div class="menu-title">VECTRON SCORCHED</div>
+      <div class="menu-subtitle">⚡ The Mother of All Games ⚡</div>
+
+      <div class="menu-options">
+        <div class="menu-row">
+          <label>Players:</label>
+          <select id="num-players">
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+        </div>
+        <div class="menu-row">
+          <label>Humans:</label>
+          <select id="num-humans">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+        </div>
+        <div class="menu-row">
+          <label>AI Difficulty:</label>
+          <select id="ai-difficulty">
+            <option value="easy">Easy</option>
+            <option value="medium" selected>Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+        </div>
+        <div class="menu-row">
+          <label>Rounds:</label>
+          <input type="number" id="num-rounds" value="5" min="1" max="20">
+        </div>
+      </div>
+
+      <button class="start-btn" onclick="window.startGame()">▶ START GAME</button>
+
+      <div class="menu-controls">
+        ← → Angle &nbsp;|&nbsp; ↑ ↓ Power &nbsp;|&nbsp; SPACE Fire<br>
+        A/D Move Tank &nbsp;|&nbsp; 1-9 Select Weapon &nbsp;|&nbsp; TAB Cycle Weapon<br>
+        On mobile: drag near tank to aim, tap FIRE button
+      </div>
+    </div>
+
+    <!-- Shop Overlay -->
+    <div id="shop-overlay">
+      <div class="shop-content"></div>
+    </div>
+
+    <!-- Mobile Controls -->
+    <div id="mobile-controls">
+      <button class="mobile-btn" onclick="window.fireMobile()">🔥 FIRE</button>
+    </div>
+  </div>
+
+  <script type="module" src="game.js"></script>
+</body>
+</html>
