@@ -234,19 +234,81 @@
       background: #00ffff22;
     }
 
-    /* Mobile fire button */
+    /* Mobile controls panel */
     #mobile-controls {
       display: none;
-      position: absolute;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 5;
-      gap: 10px;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      background: rgba(5, 5, 16, 0.92);
+      border-top: 1px solid #00ffff44;
+      padding: 8px 12px;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .mobile-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mobile-row label {
+      font-size: 0.7em;
+      color: #00ffff;
+      width: 50px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .mobile-row input[type="range"] {
+      flex: 1;
+      height: 24px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: #111;
+      border-radius: 4px;
+      outline: none;
+    }
+
+    .mobile-row input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #00ffff;
+      border: 2px solid #00ffff88;
+      box-shadow: 0 0 6px #00ffff;
+    }
+
+    .mobile-row input[type="range"]::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #00ffff;
+      border: 2px solid #00ffff88;
+      box-shadow: 0 0 6px #00ffff;
+    }
+
+    .mobile-row span {
+      font-size: 0.75em;
+      color: #fff;
+      width: 36px;
+      text-align: left;
+      flex-shrink: 0;
+    }
+
+    .mobile-buttons {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
     }
 
     .mobile-btn {
-      padding: 10px 20px;
+      min-height: 44px;
+      padding: 8px 14px;
       font-family: monospace;
       font-size: 0.8em;
       background: rgba(0, 0, 0, 0.7);
@@ -254,6 +316,26 @@
       border: 1px solid #ff00ff44;
       border-radius: 4px;
       cursor: pointer;
+      flex: 1;
+      text-align: center;
+    }
+
+    .mobile-btn:active {
+      background: rgba(255, 0, 255, 0.15);
+    }
+
+    .mobile-btn.fire-btn {
+      background: rgba(200, 0, 80, 0.5);
+      color: #fff;
+      border-color: #ff0066;
+      font-size: 1em;
+      font-weight: bold;
+      min-height: 50px;
+      flex: 1.5;
+    }
+
+    .mobile-btn.fire-btn:active {
+      background: rgba(255, 0, 100, 0.6);
     }
 
     @media (max-width: 768px) {
@@ -266,11 +348,19 @@
       .shop-grid {
         grid-template-columns: 1fr;
       }
+      #game-container {
+        aspect-ratio: unset;
+        height: calc(100vh - 200px);
+      }
     }
 
     @media (pointer: coarse) {
       #mobile-controls {
         display: flex;
+      }
+      #game-container {
+        aspect-ratio: unset;
+        height: calc(100vh - 200px);
       }
     }
   </style>
@@ -332,7 +422,25 @@
 
     <!-- Mobile Controls -->
     <div id="mobile-controls">
-      <button class="mobile-btn" onclick="window.fireMobile()">🔥 FIRE</button>
+        <div class="mobile-row">
+            <label>ANGLE</label>
+            <input type="range" id="angle-slider" min="0" max="180" value="45" oninput="window.setAngle(this.value)">
+            <span id="angle-val">45°</span>
+        </div>
+        <div class="mobile-row">
+            <label>POWER</label>
+            <input type="range" id="power-slider" min="5" max="100" value="50" oninput="window.setPower(this.value)">
+            <span id="power-val">50</span>
+        </div>
+        <div class="mobile-row mobile-buttons">
+            <button class="mobile-btn" onclick="window.prevWeapon()">◄ WPN</button>
+            <button class="mobile-btn fire-btn" onclick="window.fireMobile()">🔥 FIRE</button>
+            <button class="mobile-btn" onclick="window.nextWeapon()">WPN ►</button>
+        </div>
+        <div class="mobile-row mobile-buttons">
+            <button class="mobile-btn" onclick="window.moveLeft()">← MOVE</button>
+            <button class="mobile-btn" onclick="window.moveRight()">MOVE →</button>
+        </div>
     </div>
   </div>
 

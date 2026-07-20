@@ -103,7 +103,7 @@ function drawTerrain() {
     ctx.shadowBlur = 8;
   }
   ctx.strokeStyle = '#00ff88';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 3;
   ctx.stroke();
   ctx.shadowBlur = 0;
 }
@@ -118,6 +118,8 @@ function drawNapalm() {
 }
 
 function drawTanks() {
+  const VISUAL_TANK_W = 28;
+  const VISUAL_TANK_H = 16;
   for (const player of state.players) {
     if (!player.alive) continue;
 
@@ -131,34 +133,34 @@ function drawTanks() {
       ctx.shadowBlur = 6;
     }
 
-    // Body rectangle
+    // Body rectangle (visual size)
     ctx.fillRect(
-      x - TANK_WIDTH / 2,
-      y - TANK_HEIGHT,
-      TANK_WIDTH,
-      TANK_HEIGHT
+      x - VISUAL_TANK_W / 2,
+      y - VISUAL_TANK_H,
+      VISUAL_TANK_W,
+      VISUAL_TANK_H
     );
 
     // Turret
     const angleRad = (player.angle * Math.PI) / 180;
-    const turretLen = 16;
+    const turretLen = 18;
     const tx = x + Math.cos(angleRad) * turretLen;
-    const ty = y - TANK_HEIGHT / 2 - Math.sin(angleRad) * turretLen;
+    const ty = y - VISUAL_TANK_H / 2 - Math.sin(angleRad) * turretLen;
 
     ctx.beginPath();
-    ctx.moveTo(x, y - TANK_HEIGHT / 2);
+    ctx.moveTo(x, y - VISUAL_TANK_H / 2);
     ctx.lineTo(tx, ty);
     ctx.strokeStyle = player.color;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 4;
     ctx.stroke();
 
     ctx.shadowBlur = 0;
 
     // HP bar
-    const hpWidth = TANK_WIDTH + 4;
-    const hpHeight = 3;
+    const hpWidth = VISUAL_TANK_W + 6;
+    const hpHeight = 5;
     const hpX = x - hpWidth / 2;
-    const hpY = y - TANK_HEIGHT - 8;
+    const hpY = y - VISUAL_TANK_H - 10;
 
     ctx.fillStyle = '#333';
     ctx.fillRect(hpX, hpY, hpWidth, hpHeight);
@@ -170,9 +172,9 @@ function drawTanks() {
     // Current player indicator
     if (state.phase === GamePhase.AIMING && player.index === state.currentPlayerIndex) {
       ctx.fillStyle = player.color;
-      ctx.font = '10px monospace';
+      ctx.font = '12px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('▼', x, y - TANK_HEIGHT - 14);
+      ctx.fillText('▼', x, y - VISUAL_TANK_H - 16);
     }
   }
 }
@@ -197,7 +199,7 @@ function drawProjectiles() {
       ctx.shadowBlur = 8;
     }
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
   }
@@ -250,7 +252,7 @@ function drawHUD() {
   ctx.lineWidth = 1;
   ctx.strokeRect(5, 5, 220, 100);
 
-  ctx.font = '12px monospace';
+  ctx.font = '14px monospace';
   ctx.textAlign = 'left';
   ctx.fillStyle = player.color;
   ctx.fillText(`${player.name}`, 15, 25);
@@ -269,7 +271,7 @@ function drawHUD() {
   ctx.strokeStyle = '#444';
   ctx.strokeRect(panelX, 5, panelW, 20 + state.players.length * 18);
 
-  ctx.font = '11px monospace';
+  ctx.font = '13px monospace';
   ctx.fillStyle = '#888';
   ctx.fillText('Players', panelX + 10, 20);
 
@@ -284,7 +286,7 @@ function drawHUD() {
   }
 
   // Round info
-  ctx.font = '11px monospace';
+  ctx.font = '13px monospace';
   ctx.fillStyle = '#888';
   ctx.textAlign = 'center';
   ctx.fillText(`Round ${state.round} / ${state.totalRounds}`, CANVAS_W / 2, CANVAS_H - 10);

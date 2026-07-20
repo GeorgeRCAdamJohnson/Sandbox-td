@@ -2,9 +2,9 @@
 import { CANVAS_W, CANVAS_H, COLORS, COLOR_NAMES, WEAPONS } from './src/constants.js';
 import { state, GamePhase, createPlayer, resetState, nextPlayer, getAliveCount, getCurrentPlayer } from './src/state.js';
 import { generateTerrain, getTerrainHeight } from './src/terrain.js';
-import { placeTanks, applyGravityToTanks } from './src/tanks.js';
+import { placeTanks, applyGravityToTanks, moveTank } from './src/tanks.js';
 import { createProjectile, updateProjectiles, updateNapalm, updateExplosions, updateParticles } from './src/projectiles.js';
-import { canFire, consumeAmmo, getPlayerWeapon } from './src/weapons.js';
+import { canFire, consumeAmmo, getPlayerWeapon, selectNextWeapon } from './src/weapons.js';
 import { computeAIMove, aiSelectWeapon } from './src/ai.js';
 import { openShop, buyWeapon, sellWeapon, finishShopping, isShopDone } from './src/shop.js';
 import { initRenderer, render, renderMenu, renderGameOver, drawAimingGuide } from './src/renderer.js';
@@ -98,10 +98,24 @@ function startRound() {
   startTurn();
 }
 
+function syncMobileSliders(player) {
+  const angleSlider = document.getElementById('angle-slider');
+  const angleVal = document.getElementById('angle-val');
+  const powerSlider = document.getElementById('power-slider');
+  const powerVal = document.getElementById('power-val');
+  if (angleSlider) angleSlider.value = Math.round(player.angle);
+  if (angleVal) angleVal.textContent = Math.round(player.angle) + '°';
+  if (powerSlider) powerSlider.value = Math.round(player.power);
+  if (powerVal) powerVal.textContent = Math.round(player.power);
+}
+
 function startTurn() {
   state.phase = GamePhase.AIMING;
   const player = getCurrentPlayer();
   if (!player) return;
+
+  // Sync mobile sliders with current player's values
+  syncMobileSliders(player);
 
   if (player.isAI) {
     // AI takes its turn after a brief delay
@@ -217,6 +231,11 @@ function update() {
   } else if (state.phase === GamePhase.AIMING) {
     updateExplosions();
     updateParticles();
+    // Keep mobile sliders in sync with keyboard changes
+    const player = getCurrentPlayer();
+    if (player && !player.isAI) {
+      syncMobileSliders(player);
+    }
   }
 }
 
@@ -268,6 +287,58 @@ window.startGame = () => {
 // Fire button for mobile
 window.fireMobile = () => {
   fireWeapon();
+};
+
+// Mobile control: set angle
+window.setAngle = (val) => {
+  const player = getCurrentPlayer();
+  if (player && !player.isAI && state.phase === GamePhase.AIMING) {
+    player.angle = parseInt(val);
+    const el = document.getElementById('angle-val');
+    if (el) el.textContent = val + '°';
+  }
+};
+
+// Mobile control: set power
+window.setPower = (val) => {
+  const player = getCurrentPlayer();
+  if (player && !player.isAI && state.phase === GamePhase.AIMING) {
+    player.power = parseInt(val);
+    const el = document.getElementById('power-val');
+    if (el) el.textContent = val;
+  }
+};
+
+// Mobile control: next weapon
+window.nextWeapon = () => {
+  const player = getCurrentPlayer();
+  if (player && !player.isAI && state.phase === GamePhase.AIMING) {
+    selectNextWeapon(player, 1);
+  }
+};
+
+// Mobile control: prev weapon
+window.prevWeapon = () => {
+  const player = getCurrentPlayer();
+  if (player && !player.isAI && state.phase === GamePhase.AIMING) {
+    selectNextWeapon(player, -1);
+  }
+};
+
+// Mobile control: move left
+window.moveLeft = () => {
+  const player = getCurrentPlayer();
+  if (player && !player.isAI && state.phase === GamePhase.AIMING) {
+    moveTank(player, -1, state.terrain);
+  }
+};
+
+// Mobile control: move right
+window.moveRight = () => {
+  const player = getCurrentPlayer();
+  if (player && !player.isAI && state.phase === GamePhase.AIMING) {
+    moveTank(player, 1, state.terrain);
+  }
 };
 
 // Initialize on DOM ready
