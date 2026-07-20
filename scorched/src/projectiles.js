@@ -1,5 +1,5 @@
 // projectiles.js - Physics, trajectory, explosions
-import { GRAVITY, CANVAS_W, CANVAS_H } from './constants.js';
+import { GRAVITY, CANVAS_W, CANVAS_H, TANK_HEIGHT } from './constants.js';
 import { state } from './state.js';
 import { getTerrainHeight, destroyTerrain, addTerrain } from './terrain.js';
 import { damageTank, applyGravityToTanks } from './tanks.js';
