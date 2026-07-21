@@ -1,4 +1,4 @@
-// renderer.js - All drawing: terrain, tanks, UI, effects
+// renderer.js - All drawing: terrain, tanks, UI, effects v2
 import { CANVAS_W, CANVAS_H, TANK_WIDTH, TANK_HEIGHT, GRAVITY } from './constants.js';
 import { state, GamePhase, getCurrentPlayer } from './state.js';
 import { getTerrainHeight } from './terrain.js';
@@ -420,3 +420,4 @@ export function renderGameOver() {
   ctx.fillStyle = '#888';
   ctx.fillText('Press SPACE or click to play again', CANVAS_W / 2, 400);
 }
+/* cache bust 1784605846 */
