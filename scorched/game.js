@@ -147,12 +147,6 @@ function fireWeapon() {
 
   if (!canFire(player)) return;
 
-  // Force-read mobile slider values before firing (in case events didn't propagate)
-  const angleSlider = document.getElementById('angle-slider');
-  const powerSlider = document.getElementById('power-slider');
-  if (angleSlider) player.angle = parseInt(angleSlider.value);
-  if (powerSlider) player.power = parseInt(powerSlider.value);
-
   playFire();
   consumeAmmo(player);
 

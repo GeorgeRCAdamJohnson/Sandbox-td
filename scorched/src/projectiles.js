@@ -11,9 +11,14 @@ export function createProjectile(player, weapon) {
   const vx = Math.cos(angleRad) * speed;
   const vy = -Math.sin(angleRad) * speed;
 
+  // Launch from turret tip
+  const turretLen = 18;
+  const startX = player.x + Math.cos(angleRad) * turretLen;
+  const startY = player.y - TANK_HEIGHT / 2 - Math.sin(angleRad) * turretLen;
+
   return {
-    x: player.x,
-    y: player.y - TANK_HEIGHT,
+    x: startX,
+    y: startY,
     vx,
     vy,
     weapon,

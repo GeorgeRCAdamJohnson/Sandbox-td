@@ -328,16 +328,17 @@ function drawWind() {
 export function drawAimingGuide(player) {
   if (!player || state.phase !== GamePhase.AIMING) return;
 
-  // Draw dotted trajectory preview (first few points)
+  // Draw dotted trajectory preview starting from turret tip
   const angleRad = (player.angle * Math.PI) / 180;
   const speed = player.power * 0.2;
   let vx = Math.cos(angleRad) * speed;
   let vy = -Math.sin(angleRad) * speed;
-  let x = player.x;
-  let y = player.y - TANK_HEIGHT;
+  const turretLen = 18;
+  let x = player.x + Math.cos(angleRad) * turretLen;
+  let y = player.y - 8 - Math.sin(angleRad) * turretLen;
 
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-  for (let i = 0; i < 20; i++) {
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+  for (let i = 0; i < 40; i++) {
     vx += state.wind * 0.01;
     vy += GRAVITY;
     x += vx;
@@ -348,7 +349,7 @@ export function drawAimingGuide(player) {
 
     if (i % 2 === 0) {
       ctx.beginPath();
-      ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+      ctx.arc(x, y, 2, 0, Math.PI * 2);
       ctx.fill();
     }
   }
