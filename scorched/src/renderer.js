@@ -1,5 +1,5 @@
 // renderer.js - All drawing: terrain, tanks, UI, effects
-import { CANVAS_W, CANVAS_H, TANK_WIDTH, TANK_HEIGHT } from './constants.js';
+import { CANVAS_W, CANVAS_H, TANK_WIDTH, TANK_HEIGHT, GRAVITY } from './constants.js';
 import { state, GamePhase, getCurrentPlayer } from './state.js';
 import { getTerrainHeight } from './terrain.js';
 import { getPlayerWeapon } from './weapons.js';
