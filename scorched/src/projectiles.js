@@ -4,6 +4,7 @@ import { state } from './state.js';
 import { getTerrainHeight, destroyTerrain, addTerrain } from './terrain.js';
 import { damageTank, applyGravityToTanks } from './tanks.js';
 import { playExplosion, playFire } from './audio.js';
+import { addCraterGlow, triggerScreenFlash } from './renderer.js';
 
 export function createProjectile(player, weapon) {
   const angleRad = (player.angle * Math.PI) / 180;
@@ -156,6 +157,14 @@ function handleImpact(p) {
 
 function explodeAt(x, y, weapon, ownerIndex) {
   playExplosion(weapon.radius);
+
+  // Crater glow effect
+  addCraterGlow(x, y, weapon.radius);
+
+  // Screen flash for big explosions
+  if (weapon.radius >= 40) {
+    triggerScreenFlash(weapon.radius >= 70 ? 0.6 : 0.3);
+  }
 
   // Create explosion visual
   state.explosions.push({

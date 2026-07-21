@@ -7,7 +7,7 @@ import { createProjectile, updateProjectiles, updateNapalm, updateExplosions, up
 import { canFire, consumeAmmo, getPlayerWeapon, selectNextWeapon } from './src/weapons.js';
 import { computeAIMove, aiSelectWeapon } from './src/ai.js';
 import { openShop, buyWeapon, sellWeapon, finishShopping, isShopDone } from './src/shop.js';
-import { initRenderer, render, renderMenu, renderGameOver, drawAimingGuide } from './src/renderer.js';
+import { initRenderer, render, renderMenu, renderGameOver, drawAimingGuide, addMuzzleFlash } from './src/renderer.js';
 import { initInput, processHeldKeys } from './src/input.js';
 import { initAudio, resumeAudio, playFire, playUIClick } from './src/audio.js';
 
@@ -154,6 +154,9 @@ function fireWeapon() {
   const proj = createProjectile(player, weapon);
   state.projectiles.push(proj);
   state.phase = GamePhase.FIRING;
+
+  // Muzzle flash at launch point
+  addMuzzleFlash(proj.x, proj.y, player.color);
 
   // Visual feedback: add particle burst at launch point
   for (let i = 0; i < 5; i++) {

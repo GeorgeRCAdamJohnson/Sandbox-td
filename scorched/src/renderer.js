@@ -500,7 +500,7 @@ function drawProjectiles() {
     if (!p.active) continue;
 
     // Determine projectile color from the player who fired
-    const playerColor = (state.players[p.playerIndex] && state.players[p.playerIndex].color) || '#ffffff';
+    const playerColor = (state.players[p.owner] && state.players[p.owner].color) || '#ffffff';
 
     // Trail - thicker and colored
     for (let i = 0; i < p.trail.length; i++) {
